@@ -17,3 +17,4 @@
 - 저장 탭(`saved.tsx`) 및 경전 탐구(`StudyModal.tsx`)에서 타 경전 구절로 직접 이동(`navigateToSegmentById`) 및 구절 요약/모음 폴더 필터·인라인 일지 수정 추가.
 - My 탭(`my.tsx`)에 본문 글꼴(고딕/명조), 줄 간격 3단계(1.35/1.55/1.80), 출처·권리 안내 모달, 개인정보 처리방침·오픈소스 고지 모달, JSON 백업 복원(`importPersonalData`) 구현.
 - 홈 상단 연꽃 배지·설정 바로가기, 웹 키보드 상하 이동(`ArrowUp`/`ArrowDown`), `app/+html.tsx`(`lang="ko"`), `vercel.json` 및 `build:web` 스크립트 추가.
+- Vercel SPA 하위 경로(`/library`, `/practice`, `/saved`, `/my`) 새로고침 404 방지를 위해 `vercel.json` rewrite 규칙(`/(.*) -> /index.html`) 및 HTML 캐시 헤더 보완.
