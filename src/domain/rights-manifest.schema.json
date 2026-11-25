@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scroll the Buddhist Texts Rights Manifest",
+  "type": "object",
+  "required": ["version", "generatedAt", "entries"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "minLength": 1 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "workId",
+          "editionId",
+          "translator",
+          "sourceUrl",
+          "sourceRevision",
+          "license",
+          "permissionEvidence",
+          "allowRedistribution",
+          "allowCommercial",
+          "allowAdaptation",
+          "allowShare",
+          "allowTTS",
+          "allowAIProcessing",
+          "reviewedAt",
+          "reviewer",
+          "status"
+        ],
+        "properties": {
+          "workId": { "type": "string", "minLength": 1 },
+          "editionId": { "type": "string", "minLength": 1 },
+          "translator": { "type": "string", "minLength": 1 },
+          "sourceUrl": { "type": "string", "minLength": 1 },
+          "sourceRevision": { "type": "string", "minLength": 1 },
+          "license": { "type": "string", "minLength": 1 },
+          "permissionEvidence": { "type": "string", "minLength": 1 },
+          "allowRedistribution": { "type": "boolean" },
+          "allowCommercial": { "type": "boolean" },
+          "allowAdaptation": { "type": "boolean" },
+          "allowShare": { "type": "boolean" },
+          "allowTTS": { "type": "boolean" },
+          "allowAIProcessing": { "type": "boolean" },
+          "reviewedAt": { "type": "string", "minLength": 1 },
+          "reviewer": { "type": "string", "minLength": 1 },
+          "status": {
+            "type": "string",
+            "enum": ["approved", "pending", "denied", "unknown"]
+          },
+          "isSyntheticTestFixture": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
