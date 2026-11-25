@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,16 +13,18 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NoteModal } from '../../src/components/NoteModal';
 import { StudyModal } from '../../src/components/StudyModal';
 import { VerseCard } from '../../src/components/VerseCard';
+import { ViralShareModal } from '../../src/components/ViralShareModal';
 import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import { TOPICS } from '../../src/domain/readingRules';
 import { useApp, type FeedItem } from '../../src/features/app/AppProvider';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     ready,
     error,
@@ -51,16 +53,23 @@ export default function HomeScreen() {
     clearTargetSegment,
   } = useApp();
 
-  const [feedHeight, setFeedHeight] = useState(560);
+  const [feedHeight, setFeedHeight] = useState(640);
   const [editionModalOpen, setEditionModalOpen] = useState(false);
   const [topicModalOpen, setTopicModalOpen] = useState(false);
   const [studyItem, setStudyItem] = useState<FeedItem | null>(null);
   const [noteItem, setNoteItem] = useState<FeedItem | null>(null);
+  const [viralItem, setViralItem] = useState<FeedItem | null>(null);
   const [noticeBanner, setNoticeBanner] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList<FeedItem>>(null);
-  const bookmarkedIds = new Set(bookmarks.map((b) => b.segmentId));
-  const notedIds = new Set(notes.map((n) => n.segmentId));
+  const bookmarkedIds = useMemo(() => new Set(bookmarks.map((b) => b.segmentId)), [bookmarks]);
+  const noteCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const n of notes) {
+      map.set(n.segmentId, (map.get(n.segmentId) ?? 0) + 1);
+    }
+    return map;
+  }, [notes]);
 
   useEffect(() => {
     if (!targetSegmentId || feedItems.length === 0) return;
@@ -150,99 +159,121 @@ export default function HomeScreen() {
     );
   }
 
+  const isDark = palette.mode === 'dark';
+  const outerBackdrop = isDark ? '#0D1310' : '#EAE4D5';
+  const topOverlayText = isDark ? '#F2EFE6' : '#243B30';
+  const topOverlayMuted = isDark ? 'rgba(242,239,230,0.65)' : 'rgba(36,59,48,0.58)';
+
   return (
-    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: palette.background }]}>
-      {/* Top Bar */}
-      <View style={[styles.topBar, { borderBottomColor: palette.border }]}>
-        <View style={styles.brandGroup}>
-          <View style={[styles.lotusBadge, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Ionicons name="flower-outline" size={20} color={palette.primary} />
-          </View>
-          <View>
-            <Text style={[styles.brandTitle, { color: palette.primary }]}>마음스크롤</Text>
-            <Text style={[styles.brandSub, { color: palette.textSecondary }]}>Dharma Scroll</Text>
-          </View>
-        </View>
-
-        <View style={styles.modeChips}>
+    <View style={[styles.screenOuter, { backgroundColor: outerBackdrop }]}>
+      <View style={styles.stageColumn} onLayout={onFeedLayout}>
+        {/* Floating Transparent Top Overlay (TikTok-style top navigation) */}
+        <View
+          style={[
+            styles.floatingTopBar,
+            {
+              paddingTop: Math.max(insets.top, 10),
+            },
+          ]}
+        >
           <Pressable
-            onPress={() => {
-              if (currentWork) selectWorkAndSegment(currentWork.id, undefined, 'sequential');
-            }}
+            onPress={() => setEditionModalOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="순차 읽기 모드"
-            style={[
-              styles.chip,
-              {
-                backgroundColor: currentMode === 'sequential' ? palette.primary : palette.card,
-                borderColor: palette.border,
-              },
-            ]}
+            accessibilityLabel="판본 및 경전 정보 열기"
+            style={styles.topIconBtn}
           >
-            <Text style={{ color: currentMode === 'sequential' ? palette.textOnPrimary : palette.textPrimary, fontSize: 12, fontWeight: '600' }}>
-              순차 읽기
-            </Text>
+            <Ionicons name="flower-outline" size={22} color={topOverlayText} />
           </Pressable>
 
-          <Pressable
-            onPress={() => setTopicModalOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="주제 읽기 모드 선택"
-            style={[
-              styles.chip,
-              {
-                backgroundColor: currentMode === 'topic' ? palette.primary : palette.card,
-                borderColor: palette.border,
-              },
-            ]}
-          >
-            <Text style={{ color: currentMode === 'topic' ? palette.textOnPrimary : palette.textPrimary, fontSize: 12, fontWeight: '600' }}>
-              {activeTopic ? `주제: ${activeTopic}` : '주제 읽기'}
-            </Text>
-          </Pressable>
+          <View style={styles.topTabsRow}>
+            <Pressable
+              onPress={() => {
+                if (currentWork) selectWorkAndSegment(currentWork.id, undefined, 'sequential');
+              }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: currentMode === 'sequential' }}
+              style={styles.topTabBtn}
+            >
+              <Text
+                style={[
+                  styles.topTabText,
+                  { color: currentMode === 'sequential' ? topOverlayText : topOverlayMuted },
+                ]}
+              >
+                순차
+              </Text>
+              {currentMode === 'sequential' && (
+                <View style={[styles.topUnderline, { backgroundColor: topOverlayText }]} />
+              )}
+            </Pressable>
 
-          {currentMode === 'sequential' && (
+            <Pressable
+              onPress={() => setTopicModalOpen(true)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: currentMode === 'topic' }}
+              style={styles.topTabBtn}
+            >
+              <Text
+                style={[
+                  styles.topTabText,
+                  { color: currentMode === 'topic' ? topOverlayText : topOverlayMuted },
+                ]}
+              >
+                {activeTopic ? activeTopic : '주제'}
+              </Text>
+              {currentMode === 'topic' && (
+                <View style={[styles.topUnderline, { backgroundColor: topOverlayText }]} />
+              )}
+            </Pressable>
+
             <Pressable
               onPress={() => setEditionModalOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel="번역 판본 선택"
-              style={[styles.chip, { backgroundColor: palette.card, borderColor: palette.border }]}
+              accessibilityLabel="번역 판본 변경"
+              style={styles.topTabBtn}
             >
-              <Text style={{ color: palette.primary, fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
+              <Text style={[styles.topTabText, { color: topOverlayMuted }]}>
                 {currentEdition?.lang.toUpperCase() ?? '판본'}
               </Text>
             </Pressable>
-          )}
+          </View>
 
           <Pressable
-            onPress={() => router.push('/(tabs)/my')}
+            onPress={() => router.push('/(tabs)/library')}
             accessibilityRole="button"
-            accessibilityLabel="설정 열기"
-            style={[styles.iconChip, { backgroundColor: palette.card, borderColor: palette.border }]}
+            accessibilityLabel="경전 검색으로 이동"
+            style={styles.topIconBtn}
           >
-            <Ionicons name="settings-outline" size={16} color={palette.primary} />
+            <Ionicons name="search-outline" size={22} color={topOverlayText} />
           </Pressable>
         </View>
-      </View>
 
-      {noticeBanner && (
-        <View style={[styles.banner, { backgroundColor: palette.highlightBg }]}>
-          <Text style={{ color: palette.textPrimary, fontSize: 13, flex: 1 }}>{noticeBanner}</Text>
-          <Pressable onPress={() => setNoticeBanner(null)}>
-            <Ionicons name="close" size={18} color={palette.textPrimary} />
-          </Pressable>
-        </View>
-      )}
+        {noticeBanner && (
+          <View
+            style={[
+              styles.floatingBanner,
+              {
+                top: Math.max(insets.top, 10) + 52,
+                backgroundColor: palette.highlightBg,
+              },
+            ]}
+          >
+            <Text style={{ color: palette.textPrimary, fontSize: 13, flex: 1 }}>{noticeBanner}</Text>
+            <Pressable onPress={() => setNoticeBanner(null)}>
+              <Ionicons name="close" size={18} color={palette.textPrimary} />
+            </Pressable>
+          </View>
+        )}
 
-      {/* Vertical Feed */}
-      <View style={styles.feedWrapper} onLayout={onFeedLayout}>
+        {/* Full-Screen Vertical Snap Feed */}
         {feedItems.length === 0 ? (
-          <View style={styles.center}>
+          <View style={[styles.center, { backgroundColor: palette.background }]}>
             <Text style={{ color: palette.textSecondary, fontSize: 15 }}>표시할 경전 구절이 없습니다.</Text>
           </View>
         ) : (
           <FlatList
             ref={flatListRef}
+            style={styles.feedList}
             data={feedItems}
             keyExtractor={(item) => item.segment.id}
             pagingEnabled
@@ -263,7 +294,9 @@ export default function HomeScreen() {
                 <View style={[styles.endInner, { backgroundColor: palette.card, borderColor: palette.border }]}>
                   <Ionicons name="checkmark-circle-outline" size={44} color={palette.primary} />
                   <Text style={[styles.endTitle, { color: palette.primary }]}>
-                    {currentMode === 'topic' ? `${activeTopic} 주제 읽기를 마쳤습니다` : `${currentWork?.title} 끝까지 읽었습니다`}
+                    {currentMode === 'topic'
+                      ? `${activeTopic} 주제 읽기를 마쳤습니다`
+                      : `${currentWork?.title} 끝까지 읽었습니다`}
                   </Text>
                   <Text style={[styles.endDesc, { color: palette.textSecondary }]}>
                     잠시 숨을 고르며 오늘 마음에 남았던 구절을 떠올려 보세요.
@@ -285,12 +318,13 @@ export default function HomeScreen() {
                 index={index}
                 total={feedItems.length}
                 cardHeight={feedHeight}
+                topInset={Math.max(insets.top, 10)}
                 palette={palette}
                 fontScaleLevel={settings.fontScaleLevel}
                 fontStyle={settings.fontStyle}
                 lineHeightMultiplier={settings.lineHeightMultiplier}
                 isBookmarked={bookmarkedIds.has(item.segment.id)}
-                hasNote={notedIds.has(item.segment.id)}
+                noteCount={noteCountMap.get(item.segment.id) ?? 0}
                 isTtsActive={ttsActiveSegmentId === item.segment.id}
                 canGoPrev={index > 0}
                 canGoNext={index < feedItems.length - 1}
@@ -299,15 +333,16 @@ export default function HomeScreen() {
                 onToggleBookmark={() => toggleBookmark(item.segment.id, item.edition.id)}
                 onOpenStudy={() => setStudyItem(item)}
                 onOpenNote={() => setNoteItem(item)}
+                onShareForward={async () => {
+                  const res = await shareCurrentVerse(item);
+                  if (!res.textIncluded) {
+                    Alert.alert('전달 안내', '이 판본은 원문 본문 공유가 제한되어 출처 정보만 전달되었습니다.');
+                  }
+                }}
+                onOpenViralCard={() => setViralItem(item)}
                 onToggleTts={async () => {
                   const errMsg = await toggleTts(item);
                   if (errMsg) setNoticeBanner(errMsg);
-                }}
-                onShare={async () => {
-                  const res = await shareCurrentVerse(item);
-                  if (!res.textIncluded) {
-                    Alert.alert('공유 안내', '이 판본은 원문 본문 공유가 제한되어 출처 정보만 공유되었습니다.');
-                  }
                 }}
               />
             )}
@@ -336,10 +371,27 @@ export default function HomeScreen() {
       {/* Note Modal */}
       <NoteModal visible={Boolean(noteItem)} item={noteItem} onClose={() => setNoteItem(null)} />
 
+      {/* Viral Share Card Modal */}
+      <ViralShareModal
+        visible={Boolean(viralItem)}
+        item={viralItem}
+        onClose={() => setViralItem(null)}
+      />
+
       {/* Edition Selector Modal */}
-      <Modal visible={editionModalOpen} transparent animationType="fade" onRequestClose={() => setEditionModalOpen(false)}>
+      <Modal
+        visible={editionModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditionModalOpen(false)}
+      >
         <Pressable style={styles.modalBackdrop} onPress={() => setEditionModalOpen(false)}>
-          <View style={[styles.sheet, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
+          <View
+            style={[
+              styles.sheet,
+              { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
+            ]}
+          >
             <Text style={[styles.sheetTitle, { color: palette.primary }]}>번역 및 원문 판본 선택</Text>
             {editionsForCurrentWork.map((ed) => {
               const selected = currentEdition?.id === ed.id;
@@ -376,9 +428,23 @@ export default function HomeScreen() {
       </Modal>
 
       {/* Topic Selector Modal */}
-      <Modal visible={topicModalOpen} transparent animationType="fade" onRequestClose={() => setTopicModalOpen(false)}>
+      <Modal
+        visible={topicModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTopicModalOpen(false)}
+      >
         <Pressable style={styles.modalBackdrop} onPress={() => setTopicModalOpen(false)}>
-          <View style={[styles.sheet, { backgroundColor: palette.surfaceElevated, borderColor: palette.border, maxHeight: '70%' }]}>
+          <View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: palette.surfaceElevated,
+                borderColor: palette.border,
+                maxHeight: '70%',
+              },
+            ]}
+          >
             <Text style={[styles.sheetTitle, { color: palette.primary }]}>주제별 읽기 선택</Text>
             <ScrollView contentContainerStyle={{ gap: 8 }}>
               {TOPICS.map((t) => (
@@ -398,58 +464,87 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  topBar: {
+  screenOuter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  stageColumn: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 500,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  feedList: {
+    flex: 1,
+    width: '100%',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  floatingTopBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
   },
-  brandGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  lotusBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
+  topIconBtn: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandTitle: { fontSize: 18, fontWeight: '800' },
-  brandSub: { fontSize: 11 },
-  modeChips: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    minHeight: 36,
-    justifyContent: 'center',
-  },
-  iconChip: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  banner: {
+  topTabsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    gap: 20,
+  },
+  topTabBtn: {
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  topTabText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  topUnderline: {
+    marginTop: 4,
+    height: 2.5,
+    width: 24,
+    borderRadius: 2,
+  },
+  floatingBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
     paddingVertical: 10,
+    borderRadius: 12,
     gap: 8,
   },
-  feedWrapper: { flex: 1 },
-  endCard: { padding: 24, justifyContent: 'center' },
+  endCard: {
+    padding: 24,
+    justifyContent: 'center',
+  },
   endInner: {
     padding: 28,
     borderRadius: 20,
@@ -457,8 +552,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  endTitle: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
-  endDesc: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  endTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  endDesc: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   endBtn: {
     marginTop: 8,
     minHeight: MIN_TOUCH_SIZE,
@@ -478,8 +581,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 18,
     gap: 10,
+    maxWidth: 460,
+    width: '100%',
+    alignSelf: 'center',
   },
-  sheetTitle: { fontSize: 17, fontWeight: '700', marginBottom: 4 },
+  sheetTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
   sheetRow: {
     flexDirection: 'row',
     alignItems: 'center',

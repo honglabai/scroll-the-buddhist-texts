@@ -18,3 +18,4 @@
 - My 탭(`my.tsx`)에 본문 글꼴(고딕/명조), 줄 간격 3단계(1.35/1.55/1.80), 출처·권리 안내 모달, 개인정보 처리방침·오픈소스 고지 모달, JSON 백업 복원(`importPersonalData`) 구현.
 - 홈 상단 연꽃 배지·설정 바로가기, 웹 키보드 상하 이동(`ArrowUp`/`ArrowDown`), `app/+html.tsx`(`lang="ko"`), `vercel.json` 및 `build:web` 스크립트 추가.
 - Vercel SPA 하위 경로(`/library`, `/practice`, `/saved`, `/my`) 새로고침 404 방지를 위해 `vercel.json` rewrite 규칙(`/(.*) -> /index.html`) 및 HTML 캐시 헤더 보완.
+- 풀스크린 세로 스크롤 레이아웃 개편: 상단 플로팅 투명 내비게이션(순차/주제/판본 + 검색), 좌하단 경전·해설/원문 링크 오버레이, 우측 액션 레일(경전 배지/원문 토글, 찜, 해설, 기록, 전달, 바이럴 카드, 낭독 디스크) 및 SNS 공유용 `ViralShareModal`(PNG 카드 저장/문구 복사/전달) 추가, 하단 5탭 중앙 수행 강조 바 적용.

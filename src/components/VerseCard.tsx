@@ -9,9 +9,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { FeedItem } from '../features/app/AppProvider';
 import { canReadWithTTS, canShareSegmentText } from '../domain/readingRules';
 import type { FontScaleLevel } from '../domain/types';
+import type { FeedItem } from '../features/app/AppProvider';
 import { getFontSize, MIN_TOUCH_SIZE, type ThemePalette } from './theme';
 
 interface VerseCardProps {
@@ -19,12 +19,13 @@ interface VerseCardProps {
   index: number;
   total: number;
   cardHeight: number;
+  topInset: number;
   palette: ThemePalette;
   fontScaleLevel: FontScaleLevel;
   fontStyle: 'sans' | 'serif';
   lineHeightMultiplier: number;
   isBookmarked: boolean;
-  hasNote: boolean;
+  noteCount: number;
   isTtsActive: boolean;
   canGoPrev: boolean;
   canGoNext: boolean;
@@ -33,8 +34,9 @@ interface VerseCardProps {
   onToggleBookmark: () => void;
   onOpenStudy: () => void;
   onOpenNote: () => void;
+  onShareForward: () => void;
+  onOpenViralCard: () => void;
   onToggleTts: () => void;
-  onShare: () => void;
 }
 
 export function VerseCard({
@@ -42,12 +44,13 @@ export function VerseCard({
   index,
   total,
   cardHeight,
+  topInset,
   palette,
   fontScaleLevel,
   fontStyle,
   lineHeightMultiplier,
   isBookmarked,
-  hasNote,
+  noteCount,
   isTtsActive,
   canGoPrev,
   canGoNext,
@@ -56,72 +59,77 @@ export function VerseCard({
   onToggleBookmark,
   onOpenStudy,
   onOpenNote,
+  onShareForward,
+  onOpenViralCard,
   onToggleTts,
-  onShare,
 }: VerseCardProps) {
   const [longReadOpen, setLongReadOpen] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
 
+  const isDark = palette.mode === 'dark';
   const fontSize = getFontSize(fontScaleLevel);
   const lineHeight = Math.round(fontSize * lineHeightMultiplier);
   const fontFamily =
     fontStyle === 'serif'
-      ? Platform.select({ ios: 'AppleMyungjo', android: 'serif', web: '"Noto Serif KR", Georgia, serif' })
+      ? Platform.select({
+          ios: 'AppleMyungjo',
+          android: 'serif',
+          web: '"Noto Serif KR", Georgia, serif',
+        })
       : Platform.select({ web: '"Noto Sans KR", system-ui, sans-serif' });
-  const bodyText = item.segmentText?.text ?? '선택한 판본에서 이 구절의 번역을 아직 준비 중입니다.';
+
+  const bodyText =
+    item.segmentText?.text ?? '선택한 판본에서 이 구절의 번역을 아직 준비 중입니다.';
   const isLongText = bodyText.length > 140 || bodyText.includes('\n');
   const ttsAllowed = canReadWithTTS(item.rights);
   const shareTextAllowed = canShareSegmentText(item.rights);
 
+  // Serene ambient full-screen canvas palette
+  const canvasBg = isDark ? '#151F1B' : '#F6F2E8';
+  const haloTopColor = isDark ? 'rgba(65, 98, 82, 0.28)' : 'rgba(145, 162, 141, 0.22)';
+  const haloBottomColor = isDark ? 'rgba(197, 162, 106, 0.14)' : 'rgba(197, 162, 106, 0.18)';
+  const railPillBg = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(36, 59, 48, 0.08)';
+  const railIconColor = isDark ? '#F5F1E8' : '#243B30';
+  const railLabelColor = isDark ? '#DCE3DC' : '#314C40';
+  const workBadgeText = item.work.title.replace(/\s*\(.*\)/, '').slice(0, 2);
+
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          height: cardHeight,
-          backgroundColor: palette.background,
-        },
-      ]}
-    >
+    <View style={[styles.fullContainer, { height: cardHeight, backgroundColor: canvasBg }]}>
+      {/* Ambient Meditative Decorative Layers */}
+      <View pointerEvents="none" style={[styles.haloTop, { backgroundColor: haloTopColor }]} />
+      <View pointerEvents="none" style={[styles.haloBottom, { backgroundColor: haloBottomColor }]} />
+
+      {/* Center Verse Content */}
       <View
         style={[
-          styles.card,
+          styles.centerStage,
           {
-            backgroundColor: palette.card,
-            borderColor: palette.border,
+            paddingTop: topInset + 64,
+            paddingBottom: 128,
           },
         ]}
       >
-        {/* Top meta */}
-        <View style={styles.metaHeader}>
-          <View style={styles.metaLeft}>
-            <Text style={[styles.workTitle, { color: palette.primary }]} numberOfLines={1}>
-              {item.work.title}
-            </Text>
-            <Text style={[styles.sourceRef, { color: palette.textSecondary }]}>
-              {item.segment.sourceRef}
-            </Text>
-          </View>
-          <View style={styles.metaRight}>
-            <Text style={[styles.counter, { color: palette.accent }]}>
+        <View style={styles.counterRow}>
+          <View
+            style={[
+              styles.counterPill,
+              {
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(49,76,64,0.09)',
+                borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(49,76,64,0.16)',
+              },
+            ]}
+          >
+            <Text style={[styles.counterText, { color: palette.accent }]}>
               {index + 1} / {total}
             </Text>
-            {item.originalText && (
-              <Pressable
-                onPress={() => setShowOriginal((v) => !v)}
-                accessibilityRole="button"
-                accessibilityLabel={showOriginal ? '원문 숨기기' : '원문 대조 보기'}
-                style={[styles.pillButton, { borderColor: palette.border }]}
-              >
-                <Text style={[styles.pillText, { color: palette.primary }]}>
-                  {showOriginal ? '원문 닫기' : '원문 대조'}
-                </Text>
-              </Pressable>
-            )}
           </View>
+          {item.rights?.isSyntheticTestFixture && (
+            <Text style={[styles.fixtureBadge, { color: palette.textSecondary }]}>
+              테스트 시연용
+            </Text>
+          )}
         </View>
 
-        {/* Body */}
         <ScrollView
           style={styles.bodyScroll}
           contentContainerStyle={styles.bodyContent}
@@ -129,9 +137,17 @@ export function VerseCard({
           showsVerticalScrollIndicator={isLongText}
         >
           {showOriginal && item.originalText && (
-            <View style={[styles.originalBox, { borderColor: palette.border, backgroundColor: palette.background }]}>
+            <View
+              style={[
+                styles.originalBox,
+                {
+                  borderColor: palette.border,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.65)',
+                },
+              ]}
+            >
               <Text style={[styles.originalLabel, { color: palette.textSecondary }]}>
-                원문 ({item.originalEdition?.label})
+                원문 · {item.originalEdition?.label}
               </Text>
               <Text style={[styles.originalText, { color: palette.textPrimary }]}>
                 {item.originalText.text}
@@ -173,77 +189,62 @@ export function VerseCard({
             </Pressable>
           )}
         </ScrollView>
+      </View>
 
-        {/* Source attribution (always visible) */}
-        <View style={[styles.attributionRow, { borderTopColor: palette.border }]}>
-          <Text style={[styles.attributionText, { color: palette.textSecondary }]} numberOfLines={2}>
-            판본: {item.edition.label} · 번역: {item.edition.translator} · {item.rights?.license ?? '출처 확인'}
+      {/* Bottom-Left Floating Metadata Overlay (TikTok-style bottom caption area) */}
+      <View style={styles.bottomLeftOverlay}>
+        <Text style={[styles.bottomWorkTitle, { color: palette.textPrimary }]} numberOfLines={1}>
+          {item.work.title} · {item.segment.sourceRef}
+        </Text>
+
+        <View style={styles.bottomMetaLinks}>
+          <Text style={[styles.bottomAttribution, { color: palette.textSecondary }]} numberOfLines={1}>
+            {item.edition.label} · {item.edition.translator}
           </Text>
-          {item.rights?.isSyntheticTestFixture && (
-            <Text style={[styles.fixtureBadge, { color: palette.accent }]}>
-              테스트 시연용 문장
-            </Text>
-          )}
+          <View style={styles.inlineLinkRow}>
+            <Pressable
+              onPress={onOpenStudy}
+              accessibilityRole="button"
+              accessibilityLabel="구절 해설 자세히 보기"
+              style={styles.inlineLinkBtn}
+            >
+              <Text style={[styles.inlineLinkText, { color: palette.primary }]}>자세히</Text>
+            </Pressable>
+            {item.originalText && (
+              <>
+                <Text style={{ color: palette.textSecondary, fontSize: 12 }}>|</Text>
+                <Pressable
+                  onPress={() => setShowOriginal((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showOriginal ? '원문 숨기기' : '원문 보기'}
+                  style={styles.inlineLinkBtn}
+                >
+                  <Text style={[styles.inlineLinkText, { color: palette.primary }]}>
+                    {showOriginal ? '원문 닫기' : '원문 보기'}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
         </View>
 
-        {/* Action buttons (48dp touch targets) */}
-        <View style={styles.actionsRow}>
-          <ActionButton
-            icon={isBookmarked ? 'heart' : 'heart-outline'}
-            label="담기"
-            active={isBookmarked}
-            palette={palette}
-            onPress={onToggleBookmark}
-            accessibilityLabel={isBookmarked ? '마음에 담기 취소' : '마음에 담기'}
-          />
-          <ActionButton
-            icon="book-outline"
-            label="해설"
-            palette={palette}
-            onPress={onOpenStudy}
-            accessibilityLabel="구절 해설 및 원어 탐구 열기"
-          />
-          <ActionButton
-            icon={hasNote ? 'document-text' : 'create-outline'}
-            label="기록"
-            active={hasNote}
-            palette={palette}
-            onPress={onOpenNote}
-            accessibilityLabel="비공개 수행 기록 작성 및 보기"
-          />
-          <ActionButton
-            icon={isTtsActive ? 'stop-circle-outline' : 'volume-high-outline'}
-            label={isTtsActive ? '정지' : '듣기'}
-            active={isTtsActive}
-            muted={!ttsAllowed}
-            palette={palette}
-            onPress={onToggleTts}
-            accessibilityLabel={ttsAllowed ? '음성으로 듣기' : '음성 낭독 미지원 판본'}
-          />
-          <ActionButton
-            icon="share-social-outline"
-            label="공유"
-            muted={!shareTextAllowed}
-            palette={palette}
-            onPress={onShare}
-            accessibilityLabel={shareTextAllowed ? '구절 공유하기' : '출처 링크만 공유하기'}
-          />
-        </View>
-
-        {/* Accessibility Prev / Next navigation */}
-        <View style={styles.navRow}>
+        {/* Accessible Up / Down Step Controls */}
+        <View style={styles.stepControlsRow}>
           <Pressable
             onPress={onPrev}
             disabled={!canGoPrev}
             accessibilityRole="button"
             accessibilityLabel="이전 구절로 이동"
             style={[
-              styles.navBtn,
-              { borderColor: palette.border, opacity: canGoPrev ? 1 : 0.35 },
+              styles.stepBtn,
+              {
+                backgroundColor: railPillBg,
+                opacity: canGoPrev ? 1 : 0.35,
+              },
             ]}
           >
-            <Ionicons name="arrow-up" size={18} color={palette.primary} />
-            <Text style={[styles.navBtnText, { color: palette.primary }]}>이전</Text>
+            <Ionicons name="chevron-up" size={16} color={railIconColor} />
+            <Text style={[styles.stepBtnText, { color: railIconColor }]}>이전</Text>
           </Pressable>
 
           <Pressable
@@ -252,18 +253,140 @@ export function VerseCard({
             accessibilityRole="button"
             accessibilityLabel="다음 구절로 이동"
             style={[
-              styles.navBtn,
-              { borderColor: palette.border, opacity: canGoNext ? 1 : 0.35 },
+              styles.stepBtn,
+              {
+                backgroundColor: railPillBg,
+                opacity: canGoNext ? 1 : 0.35,
+              },
             ]}
           >
-            <Text style={[styles.navBtnText, { color: palette.primary }]}>다음</Text>
-            <Ionicons name="arrow-down" size={18} color={palette.primary} />
+            <Text style={[styles.stepBtnText, { color: railIconColor }]}>다음</Text>
+            <Ionicons name="chevron-down" size={16} color={railIconColor} />
           </Pressable>
         </View>
       </View>
 
+      {/* Right-Side Vertical Action Rail (찜 · 해설 · 기록 · 전달 · 바이럴 · 듣기) */}
+      <View style={styles.rightRail}>
+        {/* Creator/Work Emblem Avatar + Original Toggle */}
+        <Pressable
+          onPress={() => (item.originalText ? setShowOriginal((v) => !v) : onOpenStudy())}
+          accessibilityRole="button"
+          accessibilityLabel={item.originalText ? '원문 대조 보기' : '경전 탐구 열기'}
+          style={styles.avatarButton}
+        >
+          <View
+            style={[
+              styles.avatarCircle,
+              {
+                backgroundColor: isDark ? '#273A32' : '#314C40',
+                borderColor: '#C5A26A',
+              },
+            ]}
+          >
+            <Text style={styles.avatarText}>{workBadgeText}</Text>
+          </View>
+          <View style={[styles.avatarPlusBadge, { backgroundColor: '#C5A26A' }]}>
+            <Ionicons name={showOriginal ? 'checkmark' : 'add'} size={12} color="#19221F" />
+          </View>
+        </Pressable>
+
+        {/* 찜 (마음에 담기) */}
+        <RailAction
+          icon={isBookmarked ? 'heart' : 'heart-outline'}
+          label={isBookmarked ? '찜함' : '찜'}
+          iconColor={isBookmarked ? '#E36458' : railIconColor}
+          labelColor={isBookmarked ? '#E36458' : railLabelColor}
+          pillBg={railPillBg}
+          onPress={onToggleBookmark}
+          accessibilityLabel={isBookmarked ? '찜 취소하기' : '마음에 담기(찜)'}
+        />
+
+        {/* 해설 (구절 탐구) */}
+        <RailAction
+          icon="chatbubble-ellipses-outline"
+          label="해설"
+          iconColor={railIconColor}
+          labelColor={railLabelColor}
+          pillBg={railPillBg}
+          onPress={onOpenStudy}
+          accessibilityLabel="구절 해설 및 원어 탐구 열기"
+        />
+
+        {/* 기록 (비공개 수행 일지) */}
+        <RailAction
+          icon={noteCount > 0 ? 'bookmark' : 'bookmark-outline'}
+          label={noteCount > 0 ? `기록 ${noteCount}` : '기록'}
+          iconColor={noteCount > 0 ? palette.accent : railIconColor}
+          labelColor={noteCount > 0 ? palette.accent : railLabelColor}
+          pillBg={railPillBg}
+          onPress={onOpenNote}
+          accessibilityLabel="비공개 수행 기록 작성 및 보기"
+        />
+
+        {/* 전달 (즉시 공유) */}
+        <RailAction
+          icon="arrow-redo-outline"
+          label="전달"
+          iconColor={shareTextAllowed ? railIconColor : palette.secondary}
+          labelColor={railLabelColor}
+          pillBg={railPillBg}
+          onPress={onShareForward}
+          accessibilityLabel={shareTextAllowed ? '지인에게 구절 전달하기' : '출처 링크만 전달하기'}
+        />
+
+        {/* 바이럴 (SNS 카드 생성/복사/공유) */}
+        <RailAction
+          icon="sparkles-outline"
+          label="바이럴"
+          iconColor={palette.accent}
+          labelColor={railLabelColor}
+          pillBg={railPillBg}
+          onPress={onOpenViralCard}
+          accessibilityLabel="SNS 바이럴 카드 만들기 및 공유"
+        />
+
+        {/* 듣기 디스크 (TTS) */}
+        <Pressable
+          onPress={onToggleTts}
+          accessibilityRole="button"
+          accessibilityLabel={
+            !ttsAllowed
+              ? '음성 낭독 미지원 판본'
+              : isTtsActive
+                ? '음성 낭독 정지'
+                : '음성으로 듣기'
+          }
+          style={styles.audioDiscWrap}
+        >
+          <View
+            style={[
+              styles.audioDisc,
+              {
+                backgroundColor: isTtsActive ? '#C5A26A' : isDark ? '#25352E' : '#314C40',
+                borderColor: isTtsActive ? '#F7F4EC' : '#C5A26A',
+                opacity: ttsAllowed ? 1 : 0.45,
+              },
+            ]}
+          >
+            <Ionicons
+              name={isTtsActive ? 'stop' : 'musical-notes-outline'}
+              size={18}
+              color={isTtsActive ? '#19221F' : '#F7F4EC'}
+            />
+          </View>
+          <Text style={[styles.railLabel, { color: railLabelColor }]}>
+            {isTtsActive ? '정지' : '낭독'}
+          </Text>
+        </Pressable>
+      </View>
+
       {/* Long Text Internal Reader Modal */}
-      <Modal visible={longReadOpen} animationType="slide" onRequestClose={() => setLongReadOpen(false)}>
+      <Modal
+        visible={longReadOpen}
+        animationType="slide"
+        onRequestClose={() => setLongReadOpen(false)}
+      >
         <View style={[styles.modalContainer, { backgroundColor: palette.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: palette.border }]}>
             <Text style={[styles.modalTitle, { color: palette.primary }]}>
@@ -279,7 +402,12 @@ export function VerseCard({
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.modalScroll}>
-            <Text style={[styles.verseText, { color: palette.textPrimary, fontSize, lineHeight, fontFamily }]}>
+            <Text
+              style={[
+                styles.verseText,
+                { color: palette.textPrimary, fontSize, lineHeight, fontFamily },
+              ]}
+            >
               {bodyText}
             </Text>
           </ScrollView>
@@ -289,96 +417,95 @@ export function VerseCard({
   );
 }
 
-function ActionButton({
+function RailAction({
   icon,
   label,
-  active,
-  muted,
-  palette,
+  iconColor,
+  labelColor,
+  pillBg,
   onPress,
   accessibilityLabel,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  active?: boolean;
-  muted?: boolean;
-  palette: ThemePalette;
+  iconColor: string;
+  labelColor: string;
+  pillBg: string;
   onPress: () => void;
   accessibilityLabel: string;
 }) {
-  const color = active ? palette.accent : muted ? palette.secondary : palette.primary;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={styles.actionBtn}
+      style={styles.railBtn}
     >
-      <Ionicons name={icon} size={22} color={color} />
-      <Text style={[styles.actionLabel, { color }]}>{label}</Text>
+      <View style={[styles.railIconCircle, { backgroundColor: pillBg }]}>
+        <Ionicons name={icon} size={23} color={iconColor} />
+      </View>
+      <Text style={[styles.railLabel, { color: labelColor }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  fullContainer: {
+    width: '100%',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  haloTop: {
+    position: 'absolute',
+    top: -110,
+    left: -80,
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+  },
+  haloBottom: {
+    position: 'absolute',
+    bottom: -120,
+    right: -90,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+  },
+  centerStage: {
+    flex: 1,
+    paddingLeft: 22,
+    paddingRight: 86,
     justifyContent: 'center',
   },
-  card: {
-    flex: 1,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 18,
-    justifyContent: 'space-between',
-  },
-  metaHeader: {
+  counterRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 8,
+    marginBottom: 14,
   },
-  metaLeft: {
-    flex: 1,
-  },
-  metaRight: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  workTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  sourceRef: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  counter: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  pillButton: {
-    borderWidth: 1,
-    borderRadius: 12,
+  counterPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    minHeight: 32,
-    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  pillText: {
+  counterText: {
     fontSize: 12,
+    fontWeight: '700',
+  },
+  fixtureBadge: {
+    fontSize: 11,
     fontWeight: '600',
   },
   bodyScroll: {
-    flex: 1,
-    marginVertical: 10,
+    flexGrow: 0,
+    maxHeight: '100%',
   },
   bodyContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingVertical: 8,
-    gap: 12,
+    gap: 14,
+    paddingVertical: 6,
   },
   originalBox: {
     padding: 12,
@@ -386,7 +513,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   originalLabel: {
-    fontSize: 12,
+    fontSize: 11,
     marginBottom: 4,
     fontWeight: '600',
   },
@@ -396,7 +523,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   verseText: {
-    fontWeight: '500',
+    fontWeight: '600',
   },
   paraphraseText: {
     fontSize: 14,
@@ -417,55 +544,124 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  attributionRow: {
-    borderTopWidth: 1,
-    paddingTop: 8,
-    marginBottom: 4,
+  bottomLeftOverlay: {
+    position: 'absolute',
+    left: 20,
+    right: 88,
+    bottom: 16,
+    gap: 4,
+  },
+  bottomWorkTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  bottomMetaLinks: {
     gap: 2,
   },
-  attributionText: {
+  bottomAttribution: {
     fontSize: 12,
   },
-  fixtureBadge: {
-    fontSize: 11,
+  inlineLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  inlineLinkBtn: {
+    minHeight: 28,
+    justifyContent: 'center',
+  },
+  inlineLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  stepControlsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  stepBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    minHeight: 34,
+    borderRadius: 12,
+  },
+  stepBtnText: {
+    fontSize: 12,
     fontWeight: '700',
   },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  rightRail: {
+    position: 'absolute',
+    right: 10,
+    bottom: 14,
     alignItems: 'center',
-    paddingVertical: 4,
+    gap: 10,
   },
-  actionBtn: {
+  avatarButton: {
+    minWidth: MIN_TOUCH_SIZE,
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#F7F4EC',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  avatarPlusBadge: {
+    position: 'absolute',
+    bottom: 0,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  railBtn: {
     minWidth: MIN_TOUCH_SIZE,
     minHeight: MIN_TOUCH_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
   },
-  actionLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  navRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 4,
-  },
-  navBtn: {
-    flex: 1,
-    minHeight: MIN_TOUCH_SIZE,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
+  railIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
-  navBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
+  railLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  audioDiscWrap: {
+    minWidth: MIN_TOUCH_SIZE,
+    minHeight: MIN_TOUCH_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    gap: 2,
+  },
+  audioDisc: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalContainer: {
     flex: 1,
