@@ -9,13 +9,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { canReadWithTTS, canShareSegmentText } from '../domain/readingRules';
+import { canReadWithTTS } from '../domain/readingRules';
 import type { AppLanguage, FontScaleLevel } from '../domain/types';
 import type { FeedItem } from '../features/app/AppProvider';
 import {
   getLocalizedEditionLabel,
   getLocalizedSourceRef,
-  getLocalizedTranslator,
   getLocalizedWorkTitle,
   getStrings,
 } from '../i18n/strings';
@@ -36,14 +35,11 @@ interface VerseCardProps {
   isBookmarked: boolean;
   noteCount: number;
   isTtsActive: boolean;
-  canGoPrev: boolean;
   canGoNext: boolean;
-  onPrev: () => void;
   onNext: () => void;
   onToggleBookmark: () => void;
   onOpenStudy: () => void;
   onOpenNote: () => void;
-  onShareForward: () => void;
   onOpenViralCard: () => void;
   onToggleTts: () => void;
 }
@@ -63,14 +59,11 @@ export function VerseCard({
   isBookmarked,
   noteCount,
   isTtsActive,
-  canGoPrev,
   canGoNext,
-  onPrev,
   onNext,
   onToggleBookmark,
   onOpenStudy,
   onOpenNote,
-  onShareForward,
   onOpenViralCard,
   onToggleTts,
 }: VerseCardProps) {
@@ -89,79 +82,46 @@ export function VerseCard({
           web: appLanguage === 'en' ? '"Noto Serif", Georgia, serif' : '"Noto Serif KR", Georgia, serif',
         })
       : Platform.select({
-          web: appLanguage === 'en' ? 'system-ui, -apple-system, sans-serif' : '"Noto Sans KR", system-ui, sans-serif',
+          web:
+            appLanguage === 'en'
+              ? 'system-ui, -apple-system, sans-serif'
+              : '"Noto Sans KR", system-ui, sans-serif',
         });
 
   const bodyText = item.segmentText?.text ?? strings.card.missingEditionText;
-  const isLongText = bodyText.length > 140 || bodyText.includes('\n');
+  const isLongText = bodyText.length > 150 || bodyText.includes('\n');
   const ttsAllowed = canReadWithTTS(item.rights);
-  const shareTextAllowed = canShareSegmentText(item.rights);
 
   const workTitle = getLocalizedWorkTitle(item.work, appLanguage);
+  const shortWorkTitle = workTitle.replace(/\s*\(.*\)/, '');
   const sourceRef = getLocalizedSourceRef(item.segment, appLanguage);
-  const editionLabel = getLocalizedEditionLabel(item.edition, appLanguage);
-  const translator = getLocalizedTranslator(item.edition, appLanguage);
   const originalEditionLabel = item.originalEdition
     ? getLocalizedEditionLabel(item.originalEdition, appLanguage)
     : '';
 
-  const workBadgeText = getWorkEmblem(item.work.id, workTitle, appLanguage);
+  const progressPct = total > 0 ? Math.min(100, Math.round(((index + 1) / total) * 100)) : 0;
 
-  // Serene ambient full-screen canvas palette
-  const canvasBg = isDark ? '#151F1B' : '#F6F2E8';
-  const haloTopColor = isDark ? 'rgba(65, 98, 82, 0.28)' : 'rgba(145, 162, 141, 0.22)';
-  const haloBottomColor = isDark ? 'rgba(197, 162, 106, 0.14)' : 'rgba(197, 162, 106, 0.18)';
-  const railPillBg = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(36, 59, 48, 0.08)';
-  const railIconColor = isDark ? '#F5F1E8' : '#243B30';
-  const railLabelColor = isDark ? '#DCE3DC' : '#314C40';
-
-  // Ensure rightRail never collides with floatingTopBar on compact screens
-  const topClearance = topInset + 56 + extraTopOffset;
-  const availRailHeight = Math.max(260, cardHeight - topClearance - 12);
-  const isCompactRail = availRailHeight < 460;
-  const railGap = isCompactRail ? 4 : 10;
-  const avatarCircleSize = isCompactRail ? 36 : 44;
-  const iconCircleSize = isCompactRail ? 34 : 42;
-  const audioDiscSize = isCompactRail ? 32 : 38;
-  const railIconSize = isCompactRail ? 18 : 22;
-  const railFontSize = isCompactRail ? 10 : 11;
+  // Serene elevated circle styling (Bible-app inspired warm cream / ink floating circles)
+  const circleBg = isDark ? '#232925' : '#FFFFFF';
+  const circleBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(31,29,26,0.06)';
+  const iconColor = isDark ? '#EAE6DC' : '#1F1D1A';
+  const isCompact = cardHeight < 660;
 
   return (
-    <View style={[styles.fullContainer, { height: cardHeight, backgroundColor: canvasBg }]}>
-      {/* Ambient Meditative Decorative Layers */}
-      <View pointerEvents="none" style={[styles.haloTop, { backgroundColor: haloTopColor }]} />
-      <View pointerEvents="none" style={[styles.haloBottom, { backgroundColor: haloBottomColor }]} />
-
-      {/* Center Verse Content */}
+    <View style={[styles.fullContainer, { height: cardHeight, backgroundColor: palette.background }]}>
+      {/* Center Serene Typography Stage */}
       <View
         style={[
           styles.centerStage,
           {
-            paddingTop: topInset + (isCompactRail ? 52 : 64) + extraTopOffset,
-            paddingBottom: isCompactRail ? 144 : 158,
+            paddingTop: topInset + (isCompact ? 56 : 72) + extraTopOffset,
+            paddingBottom: isCompact ? 168 : 196,
           },
         ]}
       >
-        <View style={styles.counterRow}>
-          <View
-            style={[
-              styles.counterPill,
-              {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(49,76,64,0.09)',
-                borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(49,76,64,0.16)',
-              },
-            ]}
-          >
-            <Text style={[styles.counterText, { color: palette.accent }]}>
-              {index + 1} / {total}
-            </Text>
-          </View>
-          {item.rights?.isSyntheticTestFixture && (
-            <Text style={[styles.fixtureBadge, { color: palette.textSecondary }]}>
-              {strings.card.syntheticBadge}
-            </Text>
-          )}
-        </View>
+        <Text style={[styles.refCaption, { color: palette.textSecondary }]} numberOfLines={1}>
+          {shortWorkTitle} · {sourceRef} ({index + 1}/{total})
+        </Text>
 
         <ScrollView
           style={styles.bodyScroll}
@@ -169,13 +129,27 @@ export function VerseCard({
           nestedScrollEnabled
           showsVerticalScrollIndicator={isLongText}
         >
+          <Text
+            style={[
+              styles.verseText,
+              {
+                color: palette.textPrimary,
+                fontSize: isCompact && fontSize > 22 ? 22 : fontSize,
+                lineHeight: isCompact && fontSize > 22 ? Math.round(22 * lineHeightMultiplier) : lineHeight,
+                fontFamily,
+              },
+            ]}
+          >
+            {bodyText}
+          </Text>
+
           {showOriginal && item.originalText && (
             <View
               style={[
                 styles.originalBox,
                 {
                   borderColor: palette.border,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.65)',
+                  backgroundColor: circleBg,
                 },
               ]}
             >
@@ -187,279 +161,170 @@ export function VerseCard({
               </Text>
             </View>
           )}
+        </ScrollView>
 
-          <Text
-            style={[
-              styles.verseText,
-              {
-                color: palette.textPrimary,
-                fontSize,
-                lineHeight,
-                fontFamily,
-              },
-            ]}
-          >
-            {bodyText}
-          </Text>
-
-          {item.segmentText?.paraphrase && (
-            <Text style={[styles.paraphraseText, { color: palette.textSecondary }]}>
-              {strings.card.paraphrasePrefix}: {item.segmentText.paraphrase}
-            </Text>
-          )}
-
+        {/* Quiet Inline View Toggles below centered verse */}
+        <View style={styles.inlineViewRow}>
           {isLongText && (
             <Pressable
               onPress={() => setLongReadOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel={strings.card.readFull}
-              style={[styles.expandReadBtn, { borderColor: palette.primary }]}
+              accessibilityLabel={strings.scrollUi.fullScreenView}
+              style={styles.inlineActionBtn}
             >
-              <Ionicons name="expand-outline" size={16} color={palette.primary} />
-              <Text style={[styles.expandReadText, { color: palette.primary }]}>
-                {strings.card.readFull}
+              <Text style={[styles.inlineActionText, { color: palette.textSecondary }]}>
+                {strings.scrollUi.fullScreenView}
               </Text>
             </Pressable>
           )}
-        </ScrollView>
-      </View>
-
-      {/* Bottom-Left Floating Metadata Overlay */}
-      <View style={styles.bottomLeftOverlay}>
-        <Text style={[styles.bottomWorkTitle, { color: palette.textPrimary }]} numberOfLines={1}>
-          {workTitle} · {sourceRef}
-        </Text>
-
-        <View style={styles.bottomMetaLinks}>
-          <Text style={[styles.bottomAttribution, { color: palette.textSecondary }]} numberOfLines={1}>
-            {editionLabel} · {translator}
-          </Text>
-          <View style={styles.inlineLinkRow}>
+          {isLongText && item.originalText && (
+            <Text style={{ color: palette.textSecondary, fontSize: 12 }}>·</Text>
+          )}
+          {item.originalText && (
             <Pressable
-              onPress={onOpenStudy}
+              onPress={() => setShowOriginal((v) => !v)}
               accessibilityRole="button"
-              accessibilityLabel={strings.card.details}
-              style={styles.inlineLinkBtn}
+              accessibilityLabel={
+                showOriginal ? strings.card.hideOriginal : strings.card.showOriginal
+              }
+              style={styles.inlineActionBtn}
             >
-              <Text style={[styles.inlineLinkText, { color: palette.primary }]}>
-                {strings.card.details}
+              <Text style={[styles.inlineActionText, { color: palette.textSecondary }]}>
+                {showOriginal ? strings.card.hideOriginal : strings.card.showOriginal}
               </Text>
             </Pressable>
-            {item.originalText && (
-              <>
-                <Text style={{ color: palette.textSecondary, fontSize: 12 }}>|</Text>
-                <Pressable
-                  onPress={() => setShowOriginal((v) => !v)}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    showOriginal ? strings.card.hideOriginal : strings.card.showOriginal
-                  }
-                  style={styles.inlineLinkBtn}
-                >
-                  <Text style={[styles.inlineLinkText, { color: palette.primary }]}>
-                    {showOriginal ? strings.card.hideOriginal : strings.card.showOriginal}
-                  </Text>
-                </Pressable>
-              </>
-            )}
-          </View>
-        </View>
-
-        {/* Accessible Up / Down Step Controls */}
-        <View style={styles.stepControlsRow}>
-          <Pressable
-            onPress={onPrev}
-            disabled={!canGoPrev}
-            accessibilityRole="button"
-            accessibilityLabel={strings.card.prev}
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: railPillBg,
-                opacity: canGoPrev ? 1 : 0.35,
-              },
-            ]}
-          >
-            <Ionicons name="chevron-up" size={16} color={railIconColor} />
-            <Text style={[styles.stepBtnText, { color: railIconColor }]}>{strings.card.prev}</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={onNext}
-            disabled={!canGoNext}
-            accessibilityRole="button"
-            accessibilityLabel={strings.card.next}
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: railPillBg,
-                opacity: canGoNext ? 1 : 0.35,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: railIconColor }]}>{strings.card.next}</Text>
-            <Ionicons name="chevron-down" size={16} color={railIconColor} />
-          </Pressable>
+          )}
         </View>
       </View>
 
-      {/* Right-Side Vertical Action Rail */}
+      {/* Right Floating White Action Circles (Heart, Journal Note, Share/Viral, Speaker TTS, Progress %) */}
       <View
         style={[
           styles.rightRail,
           {
-            top: topClearance,
-            bottom: isCompactRail ? 10 : 14,
-            gap: railGap,
+            top: topInset + 64 + extraTopOffset,
+            bottom: isCompact ? 16 : 24,
+            gap: isCompact ? 8 : 12,
           },
         ]}
       >
-        {/* Creator/Work Emblem Avatar + Original Toggle */}
-        <Pressable
-          onPress={() => (item.originalText ? setShowOriginal((v) => !v) : onOpenStudy())}
-          accessibilityRole="button"
-          accessibilityLabel={
-            item.originalText ? strings.card.showOriginal : strings.card.study
-          }
-          hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}
+        <FloatingCircleButton
+          icon={isBookmarked ? 'heart' : 'heart-outline'}
+          iconColor={isBookmarked ? palette.coral : iconColor}
+          bg={circleBg}
+          borderColor={circleBorder}
+          compact={isCompact}
+          onPress={onToggleBookmark}
+          accessibilityLabel={isBookmarked ? strings.card.liked : strings.card.like}
+        />
+
+        <FloatingCircleButton
+          icon="share-outline"
+          iconColor={iconColor}
+          bg={circleBg}
+          borderColor={circleBorder}
+          compact={isCompact}
+          onPress={onOpenViralCard}
+          accessibilityLabel={strings.card.forward}
+        />
+
+        <FloatingCircleButton
+          icon={isTtsActive ? 'stop' : 'volume-medium-outline'}
+          iconColor={isTtsActive ? palette.coral : iconColor}
+          bg={circleBg}
+          borderColor={circleBorder}
+          compact={isCompact}
+          dimmed={!ttsAllowed}
+          onPress={onToggleTts}
+          accessibilityLabel={isTtsActive ? strings.card.ttsStop : strings.card.ttsPlay}
+        />
+
+        <FloatingCircleButton
+          icon={noteCount > 0 ? 'create' : 'create-outline'}
+          iconColor={noteCount > 0 ? palette.accent : iconColor}
+          bg={circleBg}
+          borderColor={circleBorder}
+          compact={isCompact}
+          badge={noteCount > 0 ? noteCount : undefined}
+          badgeColor={palette.coral}
+          onPress={onOpenNote}
+          accessibilityLabel={strings.card.note}
+        />
+
+        {/* Circular Progress Percentage Ring */}
+        <View
+          accessibilityLabel={`${progressPct}%`}
           style={[
-            styles.avatarButton,
+            styles.progressCircle,
             {
-              minHeight: avatarCircleSize + 8,
-              marginBottom: isCompactRail ? 0 : 4,
+              width: isCompact ? 42 : 46,
+              height: isCompact ? 42 : 46,
+              borderRadius: isCompact ? 21 : 23,
+              backgroundColor: circleBg,
+              borderColor: progressPct >= 100 ? palette.coral : palette.border,
             },
           ]}
         >
           <View
             style={[
-              styles.avatarCircle,
-              {
-                width: avatarCircleSize,
-                height: avatarCircleSize,
-                borderRadius: avatarCircleSize / 2,
-                backgroundColor: isDark ? '#273A32' : '#314C40',
-                borderColor: '#C5A26A',
-              },
+              styles.progressDot,
+              { backgroundColor: palette.coral },
             ]}
+          />
+          <Text style={[styles.progressText, { color: palette.textPrimary }]}>
+            {progressPct}%
+          </Text>
+        </View>
+      </View>
+
+      {/* Bottom-Center Swipe Up Cue + Explore Deeper CTA (Bible App layout) */}
+      <View pointerEvents="box-none" style={styles.bottomCenterStack}>
+        {canGoNext && (
+          <Pressable
+            onPress={onNext}
+            accessibilityRole="button"
+            accessibilityLabel={strings.scrollUi.swipeUpTitle}
+            style={styles.swipeCueWrapper}
           >
-            <Text style={[styles.avatarText, isCompactRail && { fontSize: 11 }]}>
-              {workBadgeText}
-            </Text>
-          </View>
-          <View style={[styles.avatarPlusBadge, { backgroundColor: '#C5A26A' }]}>
-            <Ionicons name={showOriginal ? 'checkmark' : 'add'} size={12} color="#19221F" />
-          </View>
-        </Pressable>
+            <View style={styles.doubleChevronWrap}>
+              <Ionicons name="chevron-up" size={16} color={palette.textPrimary} style={{ marginBottom: -8 }} />
+              <Ionicons name="chevron-up" size={16} color={palette.textPrimary} />
+            </View>
+            <View
+              style={[
+                styles.swipeCardPill,
+                styles.softShadow,
+                { backgroundColor: circleBg, borderColor: circleBorder },
+              ]}
+            >
+              <Text style={[styles.swipeTitle, { color: palette.textPrimary }]}>
+                {strings.scrollUi.swipeUpTitle}
+              </Text>
+              <Text style={[styles.swipeSub, { color: palette.textSecondary }]}>
+                {strings.scrollUi.swipeUpSub}
+              </Text>
+            </View>
+          </Pressable>
+        )}
 
-        {/* Save / Bookmark */}
-        <RailAction
-          icon={isBookmarked ? 'heart' : 'heart-outline'}
-          label={isBookmarked ? strings.card.liked : strings.card.like}
-          iconColor={isBookmarked ? '#E36458' : railIconColor}
-          labelColor={isBookmarked ? '#E36458' : railLabelColor}
-          pillBg={railPillBg}
-          circleSize={iconCircleSize}
-          iconSize={railIconSize}
-          fontSize={railFontSize}
-          compact={isCompactRail}
-          onPress={onToggleBookmark}
-          accessibilityLabel={isBookmarked ? strings.card.liked : strings.card.like}
-        />
-
-        {/* Study */}
-        <RailAction
-          icon="chatbubble-ellipses-outline"
-          label={strings.card.study}
-          iconColor={railIconColor}
-          labelColor={railLabelColor}
-          pillBg={railPillBg}
-          circleSize={iconCircleSize}
-          iconSize={railIconSize}
-          fontSize={railFontSize}
-          compact={isCompactRail}
-          onPress={onOpenStudy}
-          accessibilityLabel={strings.card.study}
-        />
-
-        {/* Note */}
-        <RailAction
-          icon={noteCount > 0 ? 'bookmark' : 'bookmark-outline'}
-          label={noteCount > 0 ? `${strings.card.note} ${noteCount}` : strings.card.note}
-          iconColor={noteCount > 0 ? palette.accent : railIconColor}
-          labelColor={noteCount > 0 ? palette.accent : railLabelColor}
-          pillBg={railPillBg}
-          circleSize={iconCircleSize}
-          iconSize={railIconSize}
-          fontSize={railFontSize}
-          compact={isCompactRail}
-          onPress={onOpenNote}
-          accessibilityLabel={strings.card.note}
-        />
-
-        {/* Forward / Share */}
-        <RailAction
-          icon="arrow-redo-outline"
-          label={strings.card.forward}
-          iconColor={shareTextAllowed ? railIconColor : palette.secondary}
-          labelColor={railLabelColor}
-          pillBg={railPillBg}
-          circleSize={iconCircleSize}
-          iconSize={railIconSize}
-          fontSize={railFontSize}
-          compact={isCompactRail}
-          onPress={onShareForward}
-          accessibilityLabel={strings.card.forward}
-        />
-
-        {/* Viral Card */}
-        <RailAction
-          icon="sparkles-outline"
-          label={strings.card.viral}
-          iconColor={palette.accent}
-          labelColor={railLabelColor}
-          pillBg={railPillBg}
-          circleSize={iconCircleSize}
-          iconSize={railIconSize}
-          fontSize={railFontSize}
-          compact={isCompactRail}
-          onPress={onOpenViralCard}
-          accessibilityLabel={strings.card.viral}
-        />
-
-        {/* Audio / TTS */}
         <Pressable
-          onPress={onToggleTts}
+          onPress={onOpenStudy}
           accessibilityRole="button"
-          hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}
-          accessibilityLabel={isTtsActive ? strings.card.ttsStop : strings.card.ttsPlay}
-          style={[styles.audioDiscWrap, isCompactRail && { minHeight: 40, marginTop: 0 }]}
+          accessibilityLabel={strings.scrollUi.exploreDeeper}
+          style={[
+            styles.explorePill,
+            styles.softShadow,
+            { backgroundColor: circleBg, borderColor: circleBorder },
+          ]}
         >
-          <View
-            style={[
-              styles.audioDisc,
-              {
-                width: audioDiscSize,
-                height: audioDiscSize,
-                borderRadius: audioDiscSize / 2,
-                backgroundColor: isTtsActive ? '#C5A26A' : isDark ? '#25352E' : '#314C40',
-                borderColor: isTtsActive ? '#F7F4EC' : '#C5A26A',
-                opacity: ttsAllowed ? 1 : 0.45,
-              },
-            ]}
-          >
-            <Ionicons
-              name={isTtsActive ? 'stop' : 'musical-notes-outline'}
-              size={isCompactRail ? 15 : 18}
-              color={isTtsActive ? '#19221F' : '#F7F4EC'}
-            />
-          </View>
-          <Text style={[styles.railLabel, { color: railLabelColor, fontSize: railFontSize }]}>
-            {isTtsActive ? strings.card.ttsStop : strings.card.ttsPlay}
+          <Ionicons name="book-outline" size={17} color={palette.textPrimary} />
+          <Text style={[styles.exploreText, { color: palette.textPrimary }]}>
+            {strings.scrollUi.exploreDeeper}
           </Text>
         </Pressable>
       </View>
 
-      {/* Long Text Internal Reader Modal */}
+      {/* Full-Screen Distraction-Free Long Passage Modal */}
       <Modal
         visible={longReadOpen}
         animationType="slide"
@@ -467,7 +332,7 @@ export function VerseCard({
       >
         <View style={[styles.modalContainer, { backgroundColor: palette.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: palette.border }]}>
-            <Text style={[styles.modalTitle, { color: palette.primary }]}>
+            <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>
               {workTitle} · {sourceRef}
             </Text>
             <Pressable
@@ -482,12 +347,22 @@ export function VerseCard({
           <ScrollView contentContainerStyle={styles.modalScroll}>
             <Text
               style={[
-                styles.verseText,
+                styles.modalVerseText,
                 { color: palette.textPrimary, fontSize, lineHeight, fontFamily },
               ]}
             >
               {bodyText}
             </Text>
+            {item.originalText && (
+              <View style={[styles.originalBox, { borderColor: palette.border, backgroundColor: circleBg, marginTop: 20 }]}>
+                <Text style={[styles.originalLabel, { color: palette.textSecondary }]}>
+                  {strings.card.originalLabel} · {originalEditionLabel}
+                </Text>
+                <Text style={[styles.originalText, { color: palette.textPrimary }]}>
+                  {item.originalText.text}
+                </Text>
+              </View>
+            )}
           </ScrollView>
         </View>
       </Modal>
@@ -495,75 +370,55 @@ export function VerseCard({
   );
 }
 
-function getWorkEmblem(workId: string, localizedTitle: string, lang: AppLanguage): string {
-  if (lang === 'en') {
-    const enMap: Record<string, string> = {
-      'work-diamond': 'DM',
-      'work-heart': 'HT',
-      'work-dhp': 'DH',
-      'work-kp': 'KP',
-      'work-sn56-11': 'SN',
-      'work-snp': 'NP',
-      'work-iti': 'IT',
-      'work-ud': 'UD',
-    };
-    return enMap[workId] ?? localizedTitle.slice(0, 2).toUpperCase();
-  }
-  const koMap: Record<string, string> = {
-    'work-diamond': '금강',
-    'work-heart': '반야',
-    'work-cheonsu': '천수',
-  };
-  return koMap[workId] ?? localizedTitle.replace(/\s*\(.*\)/, '').slice(0, 2);
-}
-
-function RailAction({
+function FloatingCircleButton({
   icon,
-  label,
   iconColor,
-  labelColor,
-  pillBg,
-  circleSize,
-  iconSize,
-  fontSize,
+  bg,
+  borderColor,
   compact,
+  dimmed,
+  badge,
+  badgeColor,
   onPress,
   accessibilityLabel,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
-  label: string;
   iconColor: string;
-  labelColor: string;
-  pillBg: string;
-  circleSize: number;
-  iconSize: number;
-  fontSize: number;
+  bg: string;
+  borderColor: string;
   compact: boolean;
+  dimmed?: boolean;
+  badge?: number;
+  badgeColor?: string;
   onPress: () => void;
   accessibilityLabel: string;
 }) {
+  const size = compact ? 42 : 46;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}
-      style={[styles.railBtn, compact && { minHeight: 38, gap: 1 }]}
+      style={[
+        styles.circleBtn,
+        styles.softShadow,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: bg,
+          borderColor,
+          opacity: dimmed ? 0.45 : 1,
+        },
+      ]}
     >
-      <View
-        style={[
-          styles.railIconCircle,
-          {
-            width: circleSize,
-            height: circleSize,
-            borderRadius: circleSize / 2,
-            backgroundColor: pillBg,
-          },
-        ]}
-      >
-        <Ionicons name={icon} size={iconSize} color={iconColor} />
-      </View>
-      <Text style={[styles.railLabel, { color: labelColor, fontSize }]}>{label}</Text>
+      <Ionicons name={icon} size={compact ? 20 : 22} color={iconColor} />
+      {badge !== undefined && badge > 0 && (
+        <View style={[styles.badgeDot, { backgroundColor: badgeColor ?? '#C95B4B' }]}>
+          <Text style={styles.badgeText}>{badge}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -574,61 +429,40 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  haloTop: {
-    position: 'absolute',
-    top: -110,
-    left: -80,
-    width: 340,
-    height: 340,
-    borderRadius: 170,
-  },
-  haloBottom: {
-    position: 'absolute',
-    bottom: -120,
-    right: -90,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-  },
   centerStage: {
     flex: 1,
-    paddingLeft: 22,
-    paddingRight: 86,
+    paddingLeft: 28,
+    paddingRight: 74,
     justifyContent: 'center',
-  },
-  counterRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
   },
-  counterPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  counterText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  fixtureBadge: {
-    fontSize: 11,
+  refCaption: {
+    fontSize: 13,
     fontWeight: '600',
+    marginBottom: 14,
+    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   bodyScroll: {
     flexGrow: 0,
-    maxHeight: '100%',
+    maxHeight: '78%',
+    width: '100%',
   },
   bodyContent: {
     flexGrow: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 14,
-    paddingVertical: 6,
+    paddingVertical: 4,
+  },
+  verseText: {
+    fontWeight: '600',
+    textAlign: 'center',
   },
   originalBox: {
-    padding: 12,
-    borderRadius: 12,
+    width: '100%',
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
   },
   originalLabel: {
@@ -641,145 +475,118 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontStyle: 'italic',
   },
-  verseText: {
-    fontWeight: '600',
-  },
-  paraphraseText: {
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  expandReadBtn: {
-    alignSelf: 'flex-start',
+  inlineViewRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: MIN_TOUCH_SIZE,
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 14,
   },
-  expandReadText: {
+  inlineActionBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  inlineActionText: {
     fontSize: 13,
     fontWeight: '600',
-  },
-  bottomLeftOverlay: {
-    position: 'absolute',
-    left: 20,
-    right: 88,
-    bottom: 16,
-    gap: 4,
-  },
-  bottomWorkTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  bottomMetaLinks: {
-    gap: 2,
-  },
-  bottomAttribution: {
-    fontSize: 12,
-  },
-  inlineLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 2,
-  },
-  inlineLinkBtn: {
-    minHeight: 28,
-    justifyContent: 'center',
-  },
-  inlineLinkText: {
-    fontSize: 12,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-  stepControlsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  stepBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    minHeight: 34,
-    borderRadius: 12,
-  },
-  stepBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
   rightRail: {
     position: 'absolute',
-    right: 10,
-    justifyContent: 'flex-end',
+    right: 14,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarButton: {
-    minWidth: MIN_TOUCH_SIZE,
-    minHeight: 54,
+  circleBtn: {
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    position: 'relative',
   },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
+  softShadow: {
+    shadowColor: '#1F1D1A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    color: '#F7F4EC',
-    fontSize: 13,
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: '800',
   },
-  avatarPlusBadge: {
+  progressCircle: {
+    borderWidth: 2.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  progressDot: {
     position: 'absolute',
-    bottom: 0,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: -3,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  railBtn: {
-    minWidth: MIN_TOUCH_SIZE,
-    minHeight: MIN_TOUCH_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  railIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  railLabel: {
+  progressText: {
     fontSize: 11,
     fontWeight: '700',
   },
-  audioDiscWrap: {
-    minWidth: MIN_TOUCH_SIZE,
-    minHeight: MIN_TOUCH_SIZE,
+  bottomCenterStack: {
+    position: 'absolute',
+    left: 24,
+    right: 70,
+    bottom: 18,
+    alignItems: 'center',
+    gap: 14,
+  },
+  swipeCueWrapper: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  doubleChevronWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+  },
+  swipeCardPill: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
     gap: 2,
   },
-  audioDisc: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
+  swipeTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  swipeSub: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  explorePill: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 22,
+    minHeight: 46,
+    borderRadius: 23,
+    borderWidth: 1,
+  },
+  exploreText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   modalContainer: {
     flex: 1,
@@ -806,5 +613,9 @@ const styles = StyleSheet.create({
   },
   modalScroll: {
     padding: 24,
+    paddingBottom: 48,
+  },
+  modalVerseText: {
+    fontWeight: '600',
   },
 });

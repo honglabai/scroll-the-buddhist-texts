@@ -80,8 +80,28 @@ export default function LibraryScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: palette.background }]}>
       <View style={[styles.header, { borderBottomColor: palette.border }]}>
-        <Text style={[styles.title, { color: palette.primary }]}>{strings.library.title}</Text>
-        <View style={[styles.searchBox, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>{strings.library.title}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable
+              onPress={() => router.push('/saved')}
+              style={[styles.savedShortcutBtn, { backgroundColor: palette.card, borderColor: palette.border }]}
+            >
+              <Ionicons name="bookmark-outline" size={16} color={palette.coral} />
+              <Text style={{ color: palette.textPrimary, fontSize: 12, fontWeight: '700' }}>
+                {strings.tabs.saved}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/my')}
+              accessibilityLabel={strings.tabs.my}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="person-circle-outline" size={28} color={palette.textPrimary} />
+            </Pressable>
+          </View>
+        </View>
+        <View style={[styles.searchBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <Ionicons name="search-outline" size={20} color={palette.textSecondary} />
           <TextInput
             value={query}
@@ -105,7 +125,7 @@ export default function LibraryScreen() {
             {strings.library.searchCount(results.length)}
           </Text>
           {results.length === 0 ? (
-            <View style={[styles.emptyBox, { borderColor: palette.border }]}>
+            <View style={[styles.emptyBox, { borderColor: palette.border, backgroundColor: palette.card }]}>
               <Text style={{ color: palette.textSecondary }}>{strings.library.noResults}</Text>
             </View>
           ) : (
@@ -114,11 +134,11 @@ export default function LibraryScreen() {
                 key={`${r.segment.id}-${r.edition.id}`}
                 onPress={async () => {
                   await selectWorkAndSegment(r.work.id, r.segment.id, 'sequential');
-                  router.push('/(tabs)');
+                  router.push('/(tabs)/scroll');
                 }}
                 style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}
               >
-                <Text style={{ color: palette.primary, fontWeight: '700', fontSize: 13 }}>
+                <Text style={{ color: palette.coral, fontWeight: '700', fontSize: 13 }}>
                   {getLocalizedWorkTitle(r.work, appLanguage)} · {getLocalizedSourceRef(r.segment, appLanguage)}
                 </Text>
                 <View style={{ marginTop: 4 }}>{renderHighlighted(r.segmentText.text, query)}</View>
@@ -141,12 +161,12 @@ export default function LibraryScreen() {
                   style={[
                     styles.filterChip,
                     {
-                      backgroundColor: active ? palette.primary : palette.card,
-                      borderColor: palette.border,
+                      backgroundColor: active ? palette.coral : palette.card,
+                      borderColor: active ? palette.coral : palette.border,
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontWeight: '600', fontSize: 13 }}>
+                  <Text style={{ color: active ? '#FFFFFF' : palette.textPrimary, fontWeight: '700', fontSize: 13 }}>
                     {label}
                   </Text>
                 </Pressable>
@@ -163,7 +183,7 @@ export default function LibraryScreen() {
                 key={work.id}
                 onPress={async () => {
                   await selectWorkAndSegment(work.id, undefined, 'sequential');
-                  router.push('/(tabs)');
+                  router.push('/(tabs)/scroll');
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={title}
@@ -171,7 +191,7 @@ export default function LibraryScreen() {
               >
                 <View style={styles.workRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: palette.primary, fontSize: 17, fontWeight: '700' }}>
+                    <Text style={{ color: palette.textPrimary, fontSize: 17, fontWeight: '700' }}>
                       {title}
                     </Text>
                     {subtitle && (
@@ -182,15 +202,15 @@ export default function LibraryScreen() {
                   </View>
                   <View style={styles.countBadgeRow}>
                     <View style={[styles.countBadge, { borderColor: palette.border, backgroundColor: palette.background }]}>
-                      <Text style={{ color: palette.accent, fontSize: 11, fontWeight: '700' }}>
+                      <Text style={{ color: palette.coral, fontSize: 11, fontWeight: '700' }}>
                         {strings.library.unitLabel(work.totalSegments)}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color={palette.primary} />
+                    <Ionicons name="chevron-forward" size={20} color={palette.textSecondary} />
                   </View>
                 </View>
                 {desc && (
-                  <Text style={{ color: palette.textPrimary, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
+                  <Text style={{ color: palette.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
                     {desc}
                   </Text>
                 )}
@@ -226,7 +246,25 @@ const styles = StyleSheet.create({
     minHeight: 38,
     justifyContent: 'center',
   },
-  card: { padding: 16, borderRadius: 16, borderWidth: 1 },
+  card: {
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    shadowColor: '#1F1D1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  savedShortcutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
   workRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   countBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   countBadge: {

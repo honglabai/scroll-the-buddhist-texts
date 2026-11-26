@@ -12,12 +12,12 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: isDark ? '#F7F4EC' : palette.primary,
-        tabBarInactiveTintColor: isDark ? '#8FA396' : palette.textSecondary,
+        tabBarActiveTintColor: palette.coral,
+        tabBarInactiveTintColor: isDark ? '#8B8E87' : '#7A766E',
         tabBarStyle: {
-          backgroundColor: isDark ? '#0D1310' : palette.background,
-          borderTopColor: isDark ? '#1F2C26' : palette.border,
-          height: 66,
+          backgroundColor: isDark ? '#191D1A' : '#FAF8F4',
+          borderTopColor: isDark ? '#272D29' : '#EAE4D9',
+          height: 68,
           paddingBottom: 8,
           paddingTop: 6,
         },
@@ -30,14 +30,51 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: strings.tabs.home,
-          tabBarAccessibilityLabel: strings.tabs.home,
+          title: strings.tabs.today,
+          tabBarAccessibilityLabel: strings.tabs.today,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
-              name={focused ? 'home' : 'home-outline'}
+              name={focused ? 'heart' : 'heart-outline'}
               size={size}
-              color={typeof color === 'string' ? color : palette.primary}
+              color={typeof color === 'string' ? color : palette.coral}
             />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="practice"
+        options={{
+          title: strings.tabs.plans,
+          tabBarAccessibilityLabel: strings.tabs.plans,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'book' : 'book-outline'}
+              size={size}
+              color={typeof color === 'string' ? color : palette.coral}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scroll"
+        options={{
+          title: strings.tabs.scroll,
+          tabBarAccessibilityLabel: strings.tabs.scroll,
+          tabBarIcon: ({ focused }) => (
+            <View
+              style={[
+                styles.scrollCircle,
+                {
+                  backgroundColor: focused
+                    ? palette.coral
+                    : isDark
+                      ? '#3A3E3B'
+                      : '#6E6B65',
+                },
+              ]}
+            >
+              <Ionicons name="chevron-up" size={18} color="#FFFFFF" />
+            </View>
           ),
         }}
       />
@@ -50,59 +87,7 @@ export default function TabLayout() {
             <Ionicons
               name={focused ? 'library' : 'library-outline'}
               size={size}
-              color={typeof color === 'string' ? color : palette.primary}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="practice"
-        options={{
-          title: strings.tabs.practice,
-          tabBarAccessibilityLabel: strings.tabs.practice,
-          tabBarIcon: ({ focused }) => (
-            <View
-              style={[
-                styles.centerPill,
-                {
-                  backgroundColor: focused ? '#C5A26A' : palette.primary,
-                  borderColor: '#C5A26A',
-                },
-              ]}
-            >
-              <Ionicons
-                name="leaf"
-                size={20}
-                color={focused ? '#19221F' : '#F7F4EC'}
-              />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="saved"
-        options={{
-          title: strings.tabs.saved,
-          tabBarAccessibilityLabel: strings.tabs.saved,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'bookmark' : 'bookmark-outline'}
-              size={size}
-              color={typeof color === 'string' ? color : palette.primary}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="my"
-        options={{
-          title: strings.tabs.my,
-          tabBarAccessibilityLabel: strings.tabs.my,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={size}
-              color={typeof color === 'string' ? color : palette.primary}
+              color={typeof color === 'string' ? color : palette.coral}
             />
           ),
         }}
@@ -112,11 +97,10 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  centerPill: {
-    width: 44,
+  scrollCircle: {
+    width: 30,
     height: 30,
-    borderRadius: 10,
-    borderWidth: 1.5,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },

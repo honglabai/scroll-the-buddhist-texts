@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  FlatList,
+  ImageBackground,
   Modal,
   Platform,
   Pressable,
@@ -13,177 +12,59 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NoteModal } from '../../src/components/NoteModal';
-import { StudyModal } from '../../src/components/StudyModal';
-import { VerseCard } from '../../src/components/VerseCard';
-import { ViralShareModal } from '../../src/components/ViralShareModal';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import { TOPICS } from '../../src/domain/readingRules';
-import { useApp, type FeedItem } from '../../src/features/app/AppProvider';
+import { useApp } from '../../src/features/app/AppProvider';
 import {
-  getLocalizedEditionLabel,
+  getLocalizedSourceRef,
   getLocalizedTopicLabel,
-  getLocalizedTranslator,
   getLocalizedWorkTitle,
 } from '../../src/i18n/strings';
 
-export default function HomeScreen() {
+const HERO_ART = require('../../assets/images/journey-hero.jpg');
+const PLANS_ART = require('../../assets/images/ways-plans.jpg');
+const TOPICS_ART = require('../../assets/images/ways-topics.jpg');
+
+function formatTodayDate(lang: 'ko' | 'en'): string {
+  const now = new Date();
+  if (lang === 'en') {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[now.getMonth()]} ${now.getDate()}`;
+  }
+  return `${now.getMonth() + 1}월 ${now.getDate()}일`;
+}
+
+export default function TodayScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const {
     ready,
     error,
     palette,
     appLanguage,
     strings,
-    settings,
-    reduceMotionEffective,
     currentWork,
-    currentMode,
-    activeTopic,
-    editionsForCurrentWork,
-    currentEdition,
     feedItems,
     currentSegmentIndex,
-    targetSegmentId,
     bookmarks,
     notes,
-    ttsActiveSegmentId,
+    readEventsCount,
     canInstallPwa,
     isStandalonePwa,
     promptPwaInstall,
-    selectWorkAndSegment,
-    navigateToSegmentById,
     selectTopicFeed,
-    switchEdition,
-    setAppLanguage,
-    onSegmentFocused,
-    toggleBookmark,
-    shareCurrentVerse,
-    toggleTts,
-    clearTargetSegment,
   } = useApp();
 
-  const [feedHeight, setFeedHeight] = useState(640);
-  const [editionModalOpen, setEditionModalOpen] = useState(false);
   const [topicModalOpen, setTopicModalOpen] = useState(false);
-  const [studyItem, setStudyItem] = useState<FeedItem | null>(null);
-  const [noteItem, setNoteItem] = useState<FeedItem | null>(null);
-  const [viralItem, setViralItem] = useState<FeedItem | null>(null);
-  const [noticeBanner, setNoticeBanner] = useState<string | null>(null);
-  const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
-  const [isWebFullscreen, setIsWebFullscreen] = useState(false);
+  const [installDismissed, setInstallDismissed] = useState(false);
 
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    const onFsChange = () => {
-      setIsWebFullscreen(Boolean(document.fullscreenElement));
-    };
-    Promise.resolve().then(() => {
-      setIsWebFullscreen(Boolean(document.fullscreenElement));
-    });
-    document.addEventListener('fullscreenchange', onFsChange);
-    return () => document.removeEventListener('fullscreenchange', onFsChange);
-  }, []);
-
-  const toggleWebFullscreen = async () => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch {
-      setNoticeBanner(strings.home.fullscreenHint);
-    }
-  };
-
-  const flatListRef = useRef<FlatList<FeedItem>>(null);
-  const bookmarkedIds = useMemo(() => new Set(bookmarks.map((b) => b.segmentId)), [bookmarks]);
-  const noteCountMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const n of notes) {
-      map.set(n.segmentId, (map.get(n.segmentId) ?? 0) + 1);
-    }
-    return map;
-  }, [notes]);
-
-  useEffect(() => {
-    if (!targetSegmentId || feedItems.length === 0) return;
-    const idx = feedItems.findIndex((i) => i.segment.id === targetSegmentId);
-    if (idx >= 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({
-          index: idx,
-          animated: !reduceMotionEffective,
-        });
-      }, 60);
-    }
-    clearTargetSegment();
-  }, [targetSegmentId, feedItems, reduceMotionEffective, clearTargetSegment]);
-
-  const onFeedLayout = (e: { nativeEvent: { layout: { height: number } } }) => {
-    const h = Math.round(e.nativeEvent.layout.height);
-    if (h > 200 && Math.abs(h - feedHeight) > 4) {
-      setFeedHeight(h);
-    }
-  };
-
-  const [viewabilityConfig] = useState({ itemVisiblePercentThreshold: 60 });
-  const onSegmentFocusedRef = useRef(onSegmentFocused);
-  useEffect(() => {
-    onSegmentFocusedRef.current = onSegmentFocused;
-  }, [onSegmentFocused]);
-
-  const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: { index?: number | null; item: unknown }[] }) => {
-      const first = viewableItems[0];
-      if (first && typeof first.index === 'number' && first.item) {
-        const item = first.item as FeedItem;
-        onSegmentFocusedRef.current(item.segment.id, first.index);
-      }
-    },
-    []
-  );
-
-  const scrollToIndex = useCallback(
-    (idx: number) => {
-      if (idx < 0 || idx >= feedItems.length) return;
-      flatListRef.current?.scrollToIndex({
-        index: idx,
-        animated: !reduceMotionEffective,
-      });
-      const item = feedItems[idx];
-      if (item) {
-        onSegmentFocusedRef.current(item.segment.id, idx);
-      }
-    },
-    [feedItems, reduceMotionEffective]
-  );
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    const handleKeyDown = (ev: KeyboardEvent) => {
-      const tag = (ev.target as HTMLElement | null)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      if (ev.key === 'ArrowDown') {
-        ev.preventDefault();
-        scrollToIndex(currentSegmentIndex + 1);
-      } else if (ev.key === 'ArrowUp') {
-        ev.preventDefault();
-        scrollToIndex(currentSegmentIndex - 1);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSegmentIndex, scrollToIndex]);
+  const dateLabel = useMemo(() => formatTodayDate(appLanguage), [appLanguage]);
+  const isDark = palette.mode === 'dark';
 
   if (!ready) {
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: palette.background }]}>
-        <ActivityIndicator size="large" color={palette.primary} />
+        <ActivityIndicator size="large" color={palette.coral} />
         <Text style={{ color: palette.textSecondary, marginTop: 12 }}>{strings.home.loading}</Text>
       </SafeAreaView>
     );
@@ -200,384 +81,303 @@ export default function HomeScreen() {
     );
   }
 
-  const isDark = palette.mode === 'dark';
-  const outerBackdrop = isDark ? '#0D1310' : '#EAE4D5';
-  const topOverlayText = isDark ? '#F2EFE6' : '#243B30';
-  const topOverlayMuted = isDark ? 'rgba(242,239,230,0.65)' : 'rgba(36,59,48,0.58)';
-  const currentWorkTitle = currentWork ? getLocalizedWorkTitle(currentWork, appLanguage) : '';
-  const activeTopicDisplay = activeTopic ? getLocalizedTopicLabel(activeTopic, appLanguage) : null;
+  const currentItem = feedItems[currentSegmentIndex] ?? feedItems[0];
+  const fullWorkTitle = currentWork ? getLocalizedWorkTitle(currentWork, appLanguage) : strings.appName;
+  const shortWorkTitle = fullWorkTitle.replace(/\s*\(.*\)/, '');
+  const resumeRef = currentItem ? getLocalizedSourceRef(currentItem.segment, appLanguage) : shortWorkTitle;
+  const progressPct =
+    feedItems.length > 0 ? Math.min(100, Math.round(((currentSegmentIndex + 1) / feedItems.length) * 100)) : 0;
+
+  const serifTitleFont = Platform.select({
+    ios: 'AppleMyungjo',
+    android: 'serif',
+    web: appLanguage === 'en' ? '"Noto Serif", Georgia, serif' : '"Noto Serif KR", Georgia, serif',
+  });
+
   const showInstallBanner =
-    !noticeBanner && Platform.OS === 'web' && canInstallPwa && !isStandalonePwa && !installBannerDismissed;
+    Platform.OS === 'web' && canInstallPwa && !isStandalonePwa && !installDismissed;
 
   return (
-    <View style={[styles.screenOuter, { backgroundColor: outerBackdrop }]}>
-      <View style={styles.stageColumn} onLayout={onFeedLayout}>
-        {/* Floating Transparent Top Overlay */}
-        <View
-          style={[
-            styles.floatingTopBar,
-            {
-              paddingTop: Math.max(insets.top, 10),
-            },
-          ]}
-        >
-          <Pressable
-            onPress={() => setEditionModalOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel={strings.home.editionModalTitle}
-            style={styles.topIconBtn}
-          >
-            <Ionicons name="flower-outline" size={22} color={topOverlayText} />
-          </Pressable>
-
-          <View style={styles.topTabsRow}>
-            <Pressable
-              onPress={() => {
-                if (currentWork) selectWorkAndSegment(currentWork.id, undefined, 'sequential');
-              }}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: currentMode === 'sequential' }}
-              style={styles.topTabBtn}
-            >
-              <Text
-                style={[
-                  styles.topTabText,
-                  { color: currentMode === 'sequential' ? topOverlayText : topOverlayMuted },
-                ]}
-              >
-                {strings.home.sequential}
-              </Text>
-              {currentMode === 'sequential' && (
-                <View style={[styles.topUnderline, { backgroundColor: topOverlayText }]} />
-              )}
-            </Pressable>
-
-            <Pressable
-              onPress={() => setTopicModalOpen(true)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: currentMode === 'topic' }}
-              style={styles.topTabBtn}
-            >
-              <Text
-                style={[
-                  styles.topTabText,
-                  { color: currentMode === 'topic' ? topOverlayText : topOverlayMuted },
-                ]}
-              >
-                {activeTopicDisplay ?? strings.home.topic}
-              </Text>
-              {currentMode === 'topic' && (
-                <View style={[styles.topUnderline, { backgroundColor: topOverlayText }]} />
-              )}
-            </Pressable>
-
-            <Pressable
-              onPress={() => setEditionModalOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={strings.home.editionModalTitle}
-              style={styles.topTabBtn}
-            >
-              <Text style={[styles.topTabText, { color: topOverlayMuted }]}>
-                {currentEdition?.lang.toUpperCase() ?? strings.home.edition}
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.topRightIcons}>
-            <Pressable
-              onPress={() => setAppLanguage(appLanguage === 'ko' ? 'en' : 'ko')}
-              accessibilityRole="button"
-              accessibilityLabel={appLanguage === 'ko' ? 'Switch to English' : '한국어로 전환'}
-              style={styles.langTogglePill}
-            >
-              <Text style={[styles.langToggleText, { color: topOverlayText }]}>
-                {appLanguage === 'ko' ? 'EN' : '한글'}
-              </Text>
-            </Pressable>
-            {Platform.OS === 'web' && !isStandalonePwa && (
-              <Pressable
-                onPress={toggleWebFullscreen}
-                accessibilityRole="button"
-                accessibilityLabel={isWebFullscreen ? strings.home.fullscreenExit : strings.home.fullscreenEnter}
-                style={styles.topIconBtn}
-              >
-                <Ionicons
-                  name={isWebFullscreen ? 'contract-outline' : 'expand-outline'}
-                  size={20}
-                  color={topOverlayText}
-                />
-              </Pressable>
-            )}
-            <Pressable
-              onPress={() => router.push('/(tabs)/library')}
-              accessibilityRole="button"
-              accessibilityLabel={strings.tabs.library}
-              style={styles.topIconBtn}
-            >
-              <Ionicons name="search-outline" size={22} color={topOverlayText} />
-            </Pressable>
-          </View>
-        </View>
-
-        {noticeBanner && (
-          <View
-            style={[
-              styles.floatingBanner,
-              {
-                top: Math.max(insets.top, 10) + 52,
-                backgroundColor: palette.highlightBg,
-              },
-            ]}
-          >
-            <Text style={{ color: palette.textPrimary, fontSize: 13, flex: 1 }}>{noticeBanner}</Text>
-            <Pressable onPress={() => setNoticeBanner(null)}>
-              <Ionicons name="close" size={18} color={palette.textPrimary} />
-            </Pressable>
-          </View>
-        )}
-
-        {showInstallBanner && (
-          <View
-            style={[
-              styles.floatingBanner,
-              {
-                top: Math.max(insets.top, 10) + 48,
-                backgroundColor: isDark ? 'rgba(28,43,36,0.94)' : 'rgba(255,253,247,0.96)',
-                borderWidth: 1,
-                borderColor: '#C5A26A',
-              },
-            ]}
-          >
-            <Pressable
-              onPress={() => {
-                promptPwaInstall();
-              }}
-              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-            >
-              <Ionicons name="download-outline" size={16} color={palette.accent} />
-              <Text style={{ color: palette.textPrimary, fontSize: 12, fontWeight: '700', flex: 1 }}>
-                {appLanguage === 'en'
-                  ? 'Install App (Open without URL bar)'
-                  : '앱으로 설치하기 (상단 주소바 없이 실행)'}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setInstallBannerDismissed(true)}
-              accessibilityLabel="Close"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="close" size={16} color={palette.textSecondary} />
-            </Pressable>
-          </View>
-        )}
-
-        {/* Full-Screen Vertical Snap Feed */}
-        {feedItems.length === 0 ? (
-          <View style={[styles.center, { backgroundColor: palette.background }]}>
-            <Text style={{ color: palette.textSecondary, fontSize: 15 }}>{strings.home.emptyFeed}</Text>
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            style={styles.feedList}
-            data={feedItems}
-            keyExtractor={(item) => item.segment.id}
-            pagingEnabled
-            snapToInterval={feedHeight}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            showsVerticalScrollIndicator={false}
-            getItemLayout={(_, index) => ({
-              length: feedHeight,
-              offset: feedHeight * index,
-              index,
-            })}
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            onScrollToIndexFailed={() => {}}
-            ListFooterComponent={
-              <View style={[styles.endCard, { height: feedHeight, backgroundColor: palette.background }]}>
-                <View style={[styles.endInner, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                  <Ionicons name="checkmark-circle-outline" size={44} color={palette.primary} />
-                  <Text style={[styles.endTitle, { color: palette.primary }]}>
-                    {currentMode === 'topic' && activeTopicDisplay
-                      ? strings.home.endTopic(activeTopicDisplay)
-                      : strings.home.endWork(currentWorkTitle)}
-                  </Text>
-                  <Text style={[styles.endDesc, { color: palette.textSecondary }]}>
-                    {strings.home.endDesc}
-                  </Text>
-                  <Pressable
-                    onPress={() => router.push('/(tabs)/library')}
-                    accessibilityRole="button"
-                    accessibilityLabel={strings.home.chooseNext}
-                    style={[styles.endBtn, { backgroundColor: palette.primary }]}
-                  >
-                    <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>
-                      {strings.home.chooseNext}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            }
-            renderItem={({ item, index }) => (
-              <VerseCard
-                item={item}
-                index={index}
-                total={feedItems.length}
-                cardHeight={feedHeight}
-                topInset={Math.max(insets.top, 10)}
-                extraTopOffset={showInstallBanner ? 44 : 0}
-                palette={palette}
-                appLanguage={appLanguage}
-                fontScaleLevel={settings.fontScaleLevel}
-                fontStyle={settings.fontStyle}
-                lineHeightMultiplier={settings.lineHeightMultiplier}
-                isBookmarked={bookmarkedIds.has(item.segment.id)}
-                noteCount={noteCountMap.get(item.segment.id) ?? 0}
-                isTtsActive={ttsActiveSegmentId === item.segment.id}
-                canGoPrev={index > 0}
-                canGoNext={index < feedItems.length - 1}
-                onPrev={() => scrollToIndex(index - 1)}
-                onNext={() => scrollToIndex(index + 1)}
-                onToggleBookmark={() =>
-                  toggleBookmark(item.segment.id, item.edition.id, strings.saved.defaultFolder)
-                }
-                onOpenStudy={() => setStudyItem(item)}
-                onOpenNote={() => setNoteItem(item)}
-                onShareForward={async () => {
-                  const res = await shareCurrentVerse(item);
-                  if (!res.textIncluded) {
-                    Alert.alert(
-                      strings.home.shareRestrictedAlertTitle,
-                      strings.home.shareRestrictedAlertBody
-                    );
-                  }
-                }}
-                onOpenViralCard={() => setViralItem(item)}
-                onToggleTts={async () => {
-                  const errMsg = await toggleTts(item);
-                  if (errMsg) setNoticeBanner(errMsg);
-                }}
-              />
-            )}
-          />
-        )}
-      </View>
-
-      {/* Study Modal */}
-      <StudyModal
-        visible={Boolean(studyItem)}
-        item={studyItem}
-        onClose={() => setStudyItem(null)}
-        onNavigateToSegment={async (segId) => {
-          const targetIdx = feedItems.findIndex((f) => f.segment.id === segId);
-          if (targetIdx >= 0) {
-            scrollToIndex(targetIdx);
-          } else {
-            const moved = await navigateToSegmentById(segId);
-            if (!moved) {
-              setNoticeBanner(strings.home.missingSegment);
-            }
-          }
-        }}
-      />
-
-      {/* Note Modal */}
-      <NoteModal visible={Boolean(noteItem)} item={noteItem} onClose={() => setNoteItem(null)} />
-
-      {/* Viral Share Card Modal */}
-      <ViralShareModal
-        visible={Boolean(viralItem)}
-        item={viralItem}
-        onClose={() => setViralItem(null)}
-      />
-
-      {/* Edition Selector Modal */}
-      <Modal
-        visible={editionModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditionModalOpen(false)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setEditionModalOpen(false)}>
-          <View
-            style={[
-              styles.sheet,
-              { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
-            ]}
-          >
-            <Text style={[styles.sheetTitle, { color: palette.primary }]}>
-              {strings.home.editionModalTitle}
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: palette.background }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.innerStage}>
+          {/* Top Editorial Date Header + Read Streak Pill + Profile/Settings */}
+          <View style={styles.topHeader}>
+            <Text style={[styles.dateTitle, { color: palette.textPrimary, fontFamily: serifTitleFont }]}>
+              {dateLabel}
             </Text>
-            {editionsForCurrentWork.map((ed) => {
-              const selected = currentEdition?.id === ed.id;
-              return (
-                <Pressable
-                  key={ed.id}
-                  onPress={async () => {
-                    setEditionModalOpen(false);
-                    const res = await switchEdition(ed.id);
-                    if (!res.found && res.message) {
-                      setNoticeBanner(res.message);
-                    }
-                  }}
-                  style={[
-                    styles.sheetRow,
-                    {
-                      borderColor: palette.border,
-                      backgroundColor: selected ? palette.card : 'transparent',
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: palette.textPrimary, fontWeight: '700' }}>
-                      {getLocalizedEditionLabel(ed, appLanguage)}
-                    </Text>
-                    <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
-                      {getLocalizedTranslator(ed, appLanguage)} · {ed.licenseId}
-                    </Text>
-                  </View>
-                  {selected && <Ionicons name="checkmark" size={20} color={palette.primary} />}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
 
-      {/* Topic Selector Modal */}
+            <View style={styles.headerActions}>
+              <View
+                accessibilityLabel={`${strings.today.streakLabel} ${readEventsCount}`}
+                style={[
+                  styles.streakPill,
+                  { backgroundColor: isDark ? '#332522' : '#F4E4DF' },
+                ]}
+              >
+                <Ionicons name="flame" size={16} color={palette.coral} />
+                <Text style={[styles.streakCount, { color: palette.textPrimary }]}>
+                  {readEventsCount}
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={() => router.push('/my')}
+                accessibilityRole="button"
+                accessibilityLabel={strings.tabs.my}
+                style={styles.profileBtn}
+              >
+                <Ionicons name="person-circle-outline" size={30} color={palette.textPrimary} />
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Optional WebAPK 1-Tap Install Banner (only when browser allows native install) */}
+          {showInstallBanner && (
+            <View
+              style={[
+                styles.installBanner,
+                { backgroundColor: palette.card, borderColor: palette.coral },
+              ]}
+            >
+              <Pressable
+                onPress={() => {
+                  promptPwaInstall();
+                }}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+              >
+                <Ionicons name="download-outline" size={18} color={palette.coral} />
+                <Text style={{ color: palette.textPrimary, fontSize: 13, fontWeight: '700', flex: 1 }}>
+                  {appLanguage === 'en'
+                    ? 'Install App (Remove top browser bar)'
+                    : '앱으로 설치하기 (상단 주소바 제거)'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setInstallDismissed(true)}
+                accessibilityLabel="Close"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={18} color={palette.textSecondary} />
+              </Pressable>
+            </View>
+          )}
+
+          {/* Card 1: Main Scripture Journey Hero Card */}
+          <View
+            style={[
+              styles.sectionCard,
+              styles.cardShadow,
+              { backgroundColor: palette.card, borderColor: palette.border },
+            ]}
+          >
+            <View style={styles.cardHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                {strings.today.journeyTitle}
+              </Text>
+              <Pressable
+                onPress={() => router.push('/(tabs)/library')}
+                accessibilityRole="button"
+                accessibilityLabel={strings.today.chooseText}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={[styles.chooseTextLink, { color: palette.coral }]}>
+                  {strings.today.chooseText}
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.heroFrame}>
+              <ImageBackground
+                source={HERO_ART}
+                style={styles.heroBg}
+                imageStyle={styles.heroBgImage}
+                resizeMode="cover"
+              >
+                {/* Smooth Atmospheric Gradient Overlay for Crisp White Text */}
+                <View style={styles.heroScrimTop} />
+                {Platform.OS === 'web' ? (
+                  <View
+                    style={[
+                      styles.heroScrimGradient,
+                      {
+                        backgroundImage:
+                          'linear-gradient(180deg, rgba(16,18,15,0.02) 0%, rgba(16,18,15,0.18) 38%, rgba(16,18,15,0.72) 100%)',
+                      } as unknown as Record<string, unknown>,
+                    ]}
+                  />
+                ) : (
+                  <View style={styles.heroScrimBottom} />
+                )}
+
+                <View style={styles.heroContent}>
+                  <View style={styles.verseBadge}>
+                    <Text style={styles.verseBadgeText}>{strings.today.verseByVerseBadge}</Text>
+                  </View>
+
+                  <View style={styles.heroBottomStack}>
+                    <Text style={styles.heroWorkTitle} numberOfLines={2}>
+                      {shortWorkTitle}
+                    </Text>
+                    <Text style={styles.heroResumeText} numberOfLines={1}>
+                      {strings.today.resumeFrom(resumeRef)}
+                    </Text>
+
+                    <View style={styles.heroProgressTrack}>
+                      <View style={[styles.heroProgressFill, { width: `${progressPct}%` }]} />
+                    </View>
+
+                    <Pressable
+                      onPress={() => router.push('/(tabs)/scroll')}
+                      accessibilityRole="button"
+                      accessibilityLabel={strings.today.continueReading}
+                      style={styles.continueBtn}
+                    >
+                      <Ionicons name="play" size={15} color="#FFFFFF" />
+                      <Text style={styles.continueBtnText}>{strings.today.continueReading}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </ImageBackground>
+            </View>
+          </View>
+
+          {/* Card 2: More Ways to Contemplate */}
+          <View
+            style={[
+              styles.sectionCard,
+              styles.cardShadow,
+              { backgroundColor: palette.card, borderColor: palette.border },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+              {strings.today.otherWaysTitle}
+            </Text>
+
+            <View style={styles.waysGrid}>
+              <Pressable
+                onPress={() => router.push('/(tabs)/practice')}
+                accessibilityRole="button"
+                accessibilityLabel={strings.today.plansCardTitle}
+                style={styles.wayTile}
+              >
+                <ImageBackground
+                  source={PLANS_ART}
+                  style={styles.wayBg}
+                  imageStyle={{ borderRadius: 18 }}
+                  resizeMode="cover"
+                >
+                  <View style={styles.wayScrim} />
+                  <View style={styles.wayInner}>
+                    <View style={styles.wayTopRow}>
+                      <View style={styles.wayIconCircle}>
+                        <Ionicons name="book" size={14} color="#FFFFFF" />
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.85)" />
+                    </View>
+                    <View>
+                      <Text style={styles.wayTitle}>{strings.today.plansCardTitle}</Text>
+                      <Text style={styles.waySub} numberOfLines={1}>
+                        {strings.today.plansCardSub}
+                      </Text>
+                    </View>
+                  </View>
+                </ImageBackground>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setTopicModalOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={strings.today.topicsCardTitle}
+                style={styles.wayTile}
+              >
+                <ImageBackground
+                  source={TOPICS_ART}
+                  style={styles.wayBg}
+                  imageStyle={{ borderRadius: 18 }}
+                  resizeMode="cover"
+                >
+                  <View style={styles.wayScrim} />
+                  <View style={styles.wayInner}>
+                    <View style={styles.wayTopRow}>
+                      <View style={styles.wayIconCircle}>
+                        <Ionicons name="compass" size={14} color="#FFFFFF" />
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.85)" />
+                    </View>
+                    <View>
+                      <Text style={styles.wayTitle}>{strings.today.topicsCardTitle}</Text>
+                      <Text style={styles.waySub} numberOfLines={1}>
+                        {strings.today.topicsCardSub}
+                      </Text>
+                    </View>
+                  </View>
+                </ImageBackground>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Compact Saved Verses & Private Journal Row */}
+          <Pressable
+            onPress={() => router.push('/saved')}
+            accessibilityRole="button"
+            accessibilityLabel={strings.today.savedRowTitle}
+            style={[
+              styles.savedSummaryCard,
+              styles.cardShadow,
+              { backgroundColor: palette.card, borderColor: palette.border },
+            ]}
+          >
+            <View style={[styles.savedIconBox, { backgroundColor: isDark ? '#332522' : '#F6E8E4' }]}>
+              <Ionicons name="bookmark" size={20} color={palette.coral} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: palette.textPrimary, fontSize: 15, fontWeight: '700' }}>
+                {strings.today.savedRowTitle}
+              </Text>
+              <Text style={{ color: palette.textSecondary, fontSize: 12, marginTop: 2 }}>
+                {strings.today.savedRowSub(bookmarks.length, notes.length)}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={palette.textSecondary} />
+          </Pressable>
+        </View>
+      </ScrollView>
+
+      {/* Topic Selector Modal (jumps straight to Scroll tab in Topic mode) */}
       <Modal
         visible={topicModalOpen}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setTopicModalOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setTopicModalOpen(false)}>
+        <View style={styles.modalBackdrop}>
           <View
             style={[
-              styles.sheet,
-              {
-                backgroundColor: palette.surfaceElevated,
-                borderColor: palette.border,
-                maxHeight: '70%',
-              },
+              styles.bottomSheet,
+              { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
             ]}
           >
-            <Text style={[styles.sheetTitle, { color: palette.primary }]}>
-              {strings.home.topicModalTitle}
-            </Text>
-            <ScrollView contentContainerStyle={{ gap: 8 }}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                {strings.home.topicModalTitle}
+              </Text>
+              <Pressable onPress={() => setTopicModalOpen(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={22} color={palette.textPrimary} />
+              </Pressable>
+            </View>
+            <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
               {TOPICS.map((t) => (
                 <Pressable
                   key={t.id}
                   onPress={async () => {
                     setTopicModalOpen(false);
                     await selectTopicFeed(t.id);
+                    router.push('/(tabs)/scroll');
                   }}
-                  style={[styles.sheetRow, { borderColor: palette.border }]}
+                  style={[styles.topicRow, { borderColor: palette.border }]}
                 >
-                  <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>
+                  <Text style={{ color: palette.textPrimary, fontWeight: '600', fontSize: 15 }}>
                     {getLocalizedTopicLabel(t.id, appLanguage)}
                   </Text>
                   <Ionicons name="chevron-forward" size={18} color={palette.textSecondary} />
@@ -585,134 +385,254 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
           </View>
-        </Pressable>
+        </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screenOuter: {
-    flex: 1,
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 28,
     alignItems: 'center',
   },
-  stageColumn: {
-    flex: 1,
+  innerStage: {
     width: '100%',
-    maxWidth: 500,
-    position: 'relative',
-    overflow: 'hidden',
+    maxWidth: 480,
+    gap: 16,
   },
-  feedList: {
-    flex: 1,
-    width: '100%',
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  floatingTopBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 20,
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingBottom: 8,
-  },
-  topIconBtn: {
-    width: 34,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topRightIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    flexShrink: 0,
-  },
-  langTogglePill: {
-    paddingHorizontal: 7,
     paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(197,162,106,0.45)',
-    backgroundColor: 'rgba(197,162,106,0.14)',
-    minHeight: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  langToggleText: {
-    fontSize: 11,
-    fontWeight: '800',
+  dateTitle: {
+    fontSize: 34,
+    fontWeight: '400',
+    letterSpacing: -0.5,
   },
-  topTabsRow: {
-    flex: 1,
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 10,
-    marginHorizontal: 4,
   },
-  topTabBtn: {
-    minHeight: 38,
+  streakPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
+    gap: 6,
+    paddingHorizontal: 14,
+    height: 36,
+    borderRadius: 18,
   },
-  topTabText: {
+  streakCount: {
     fontSize: 15,
     fontWeight: '700',
   },
-  topUnderline: {
-    marginTop: 4,
-    height: 2.5,
-    width: 24,
-    borderRadius: 2,
+  profileBtn: {
+    minWidth: 38,
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  floatingBanner: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    zIndex: 25,
+  installBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 11,
+    borderRadius: 16,
+    borderWidth: 1,
     gap: 8,
   },
-  endCard: {
-    padding: 24,
+  sectionCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 18,
+    gap: 14,
+  },
+  cardShadow: {
+    shadowColor: '#1F1D1A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  chooseTextLink: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  heroFrame: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  heroBg: {
+    height: 312,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  heroBgImage: {
+    borderRadius: 20,
+  },
+  heroScrimTop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(18, 20, 16, 0.14)',
+  },
+  heroScrimBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '62%',
+    backgroundColor: 'rgba(16, 18, 15, 0.56)',
+  },
+  heroScrimGradient: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  heroContent: {
+    flex: 1,
+    padding: 18,
+    justifyContent: 'space-between',
+  },
+  verseBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(92, 82, 58, 0.72)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+  },
+  verseBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  heroBottomStack: {
+    gap: 8,
+  },
+  heroWorkTitle: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  heroResumeText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  heroProgressTrack: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    overflow: 'hidden',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  heroProgressFill: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  continueBtn: {
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(30, 32, 28, 0.76)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  continueBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  waysGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  wayTile: {
+    flex: 1,
+    height: 142,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  wayBg: {
+    flex: 1,
+    width: '100%',
+  },
+  wayScrim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(18, 22, 18, 0.42)',
+    borderRadius: 18,
+  },
+  wayInner: {
+    flex: 1,
+    padding: 14,
+    justifyContent: 'space-between',
+  },
+  wayTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  wayIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  endInner: {
-    padding: 28,
+  wayTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  waySub: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  savedSummaryCard: {
     borderRadius: 20,
     borderWidth: 1,
+    padding: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  endTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  endDesc: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  endBtn: {
-    marginTop: 8,
-    minHeight: MIN_TOUCH_SIZE,
-    paddingHorizontal: 20,
+  savedIconBox: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -720,29 +640,30 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
   },
-  sheet: {
-    borderRadius: 18,
+  bottomSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderWidth: 1,
-    padding: 18,
-    gap: 10,
-    maxWidth: 460,
+    padding: 20,
+    maxWidth: 500,
     width: '100%',
     alignSelf: 'center',
+    gap: 12,
   },
-  sheetTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 4,
+  closeBtn: {
+    minWidth: 36,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sheetRow: {
+  topicRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 14,
     borderWidth: 1,
     minHeight: MIN_TOUCH_SIZE,
   },

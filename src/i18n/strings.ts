@@ -13,10 +13,39 @@ export interface AppStrings {
   appShort: string;
   tabs: {
     home: string;
+    today: string;
+    plans: string;
+    scroll: string;
     library: string;
     practice: string;
     saved: string;
     my: string;
+  };
+  today: {
+    journeyTitle: string;
+    chooseText: string;
+    verseByVerseBadge: string;
+    resumeFrom: (ref: string) => string;
+    continueReading: string;
+    otherWaysTitle: string;
+    plansCardTitle: string;
+    plansCardSub: string;
+    topicsCardTitle: string;
+    topicsCardSub: string;
+    savedRowTitle: string;
+    savedRowSub: (saved: number, notes: number) => string;
+    streakLabel: string;
+  };
+  scrollUi: {
+    langBadge: string;
+    swipeUpTitle: string;
+    swipeUpSub: string;
+    exploreDeeper: string;
+    fullScreenView: string;
+    pickerTitle: string;
+    pickerWorkTab: string;
+    pickerChapterTab: string;
+    pickerEditionTab: string;
   };
   home: {
     sequential: string;
@@ -224,7 +253,42 @@ export interface AppStrings {
 const KO_STRINGS: AppStrings = {
   appName: '마음스크롤',
   appShort: '마음스크롤',
-  tabs: { home: '홈', library: '경전', practice: '수행', saved: '저장', my: 'My' },
+  tabs: {
+    home: '홈',
+    today: '오늘',
+    plans: '읽기 계획',
+    scroll: '스크롤',
+    library: '서재',
+    practice: '수행',
+    saved: '저장',
+    my: 'My',
+  },
+  today: {
+    journeyTitle: '경전을 지나는 여정',
+    chooseText: '경전 선택',
+    verseByVerseBadge: '한 구절씩',
+    resumeFrom: (ref) => `${ref}에서 이어가기`,
+    continueReading: '계속 읽기',
+    otherWaysTitle: '마음을 맑히는 또 다른 길',
+    plansCardTitle: '읽기 계획',
+    plansCardSub: '7 · 9 · 30 · 100일',
+    topicsCardTitle: '주제별 사유',
+    topicsCardSub: '마음 · 자비 · 지혜',
+    savedRowTitle: '저장한 구절 및 수행 일지',
+    savedRowSub: (saved, notes) => `찜한 구절 ${saved}편 · 비공개 기록 ${notes}편`,
+    streakLabel: '읽은 구절',
+  },
+  scrollUi: {
+    langBadge: 'KOR',
+    swipeUpTitle: '위로 스와이프',
+    swipeUpSub: '다음 구절로',
+    exploreDeeper: '더 깊이 알아보기',
+    fullScreenView: '전체 화면 보기',
+    pickerTitle: '경전 · 장 · 판본 선택',
+    pickerWorkTab: '경전',
+    pickerChapterTab: '장/구절',
+    pickerEditionTab: '판본',
+  },
   home: {
     sequential: '순차',
     topic: '주제',
@@ -448,7 +512,42 @@ const KO_STRINGS: AppStrings = {
 const EN_STRINGS: AppStrings = {
   appName: 'Dharma Scroll',
   appShort: 'Dharma Scroll',
-  tabs: { home: 'Home', library: 'Library', practice: 'Practice', saved: 'Saved', my: 'My' },
+  tabs: {
+    home: 'Home',
+    today: 'Today',
+    plans: 'Plans',
+    scroll: 'Scroll',
+    library: 'Library',
+    practice: 'Practice',
+    saved: 'Saved',
+    my: 'My',
+  },
+  today: {
+    journeyTitle: 'Journey Through Scriptures',
+    chooseText: 'Choose Text',
+    verseByVerseBadge: 'Verse by Verse',
+    resumeFrom: (ref) => `Continue from ${ref}`,
+    continueReading: 'Continue Reading',
+    otherWaysTitle: 'More Ways to Grow',
+    plansCardTitle: 'Reading Plans',
+    plansCardSub: '7 · 9 · 30 · 100 Days',
+    topicsCardTitle: 'Topic Meditations',
+    topicsCardSub: 'Mind · Peace · Wisdom',
+    savedRowTitle: 'Saved Verses & Journal',
+    savedRowSub: (saved, notes) => `${saved} saved · ${notes} private notes`,
+    streakLabel: 'Read count',
+  },
+  scrollUi: {
+    langBadge: 'ENG',
+    swipeUpTitle: 'Swipe Up',
+    swipeUpSub: 'Next Verse',
+    exploreDeeper: 'Explore Deeper',
+    fullScreenView: 'Full Passage View',
+    pickerTitle: 'Choose Scripture · Chapter · Edition',
+    pickerWorkTab: 'Scriptures',
+    pickerChapterTab: 'Chapters',
+    pickerEditionTab: 'Editions',
+  },
   home: {
     sequential: 'Sequential',
     topic: 'Topics',

@@ -6,6 +6,7 @@ export interface ThemePalette {
   card: string;
   surfaceElevated: string;
   primary: string;
+  coral: string;
   secondary: string;
   accent: string;
   textPrimary: string;
@@ -18,34 +19,36 @@ export interface ThemePalette {
 
 export const LIGHT_PALETTE: ThemePalette = {
   mode: 'light',
-  background: '#F7F4EC',
-  card: '#E9EDE2',
+  background: '#F5F2EB',
+  card: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  primary: '#314C40',
-  secondary: '#91A28D',
-  accent: '#C5A26A',
-  textPrimary: '#243B30',
-  textSecondary: '#475B4B',
-  textOnPrimary: '#F7F4EC',
-  border: '#CFD8C7',
-  danger: '#A63A2B',
-  highlightBg: '#F2E5C6',
+  primary: '#2B4237',
+  coral: '#C95B4B',
+  secondary: '#8C877E',
+  accent: '#B68E52',
+  textPrimary: '#1F1D1A',
+  textSecondary: '#736E66',
+  textOnPrimary: '#FFFFFF',
+  border: '#E8E2D5',
+  danger: '#B84435',
+  highlightBg: '#F6E8D9',
 };
 
 export const DARK_PALETTE: ThemePalette = {
   mode: 'dark',
-  background: '#19221F',
-  card: '#22302B',
-  surfaceElevated: '#293933',
-  primary: '#91A28D',
-  secondary: '#6B8068',
-  accent: '#C5A26A',
-  textPrimary: '#F2EFE6',
-  textSecondary: '#B9C7BC',
-  textOnPrimary: '#19221F',
-  border: '#32443D',
+  background: '#141715',
+  card: '#1E2320',
+  surfaceElevated: '#272D29',
+  primary: '#91A89A',
+  coral: '#DF6D5C',
+  secondary: '#7B827C',
+  accent: '#CFA96D',
+  textPrimary: '#F4F0E8',
+  textSecondary: '#A4A79E',
+  textOnPrimary: '#141715',
+  border: '#2D3430',
   danger: '#E37463',
-  highlightBg: '#3D3522',
+  highlightBg: '#3B2B26',
 };
 
 export const FONT_SCALE_MAP: Record<FontScaleLevel, number> = {

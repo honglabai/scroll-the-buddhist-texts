@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
@@ -14,13 +15,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FONT_SCALE_MAP, MIN_TOUCH_SIZE } from '../../src/components/theme';
-import { getFeatureFlags } from '../../src/domain/featureFlags';
-import type { AppLanguage, FontScaleLevel, ThemeMode } from '../../src/domain/types';
-import { useApp } from '../../src/features/app/AppProvider';
-import { SUBSCRIPTION_PLANS_HYPOTHESIS } from '../../src/features/extensions/extensionServices';
+import { FONT_SCALE_MAP, MIN_TOUCH_SIZE } from '../src/components/theme';
+import { getFeatureFlags } from '../src/domain/featureFlags';
+import type { AppLanguage, FontScaleLevel, ThemeMode } from '../src/domain/types';
+import { useApp } from '../src/features/app/AppProvider';
+import { SUBSCRIPTION_PLANS_HYPOTHESIS } from '../src/features/extensions/extensionServices';
 
 export default function MyScreen() {
+  const router = useRouter();
   const {
     palette,
     appLanguage,
@@ -110,9 +112,19 @@ export default function MyScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.title, { color: palette.primary }]}>
-          {strings.tabs.my} · {strings.my.title}
-        </Text>
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.push('/(tabs)'))}
+            accessibilityRole="button"
+            style={[styles.backBtn, { backgroundColor: palette.card, borderColor: palette.border }]}
+          >
+            <Ionicons name="arrow-back" size={20} color={palette.textPrimary} />
+          </Pressable>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>
+            {strings.tabs.my} · {strings.my.title}
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
         {statusMessage && (
           <View style={[styles.banner, { backgroundColor: palette.highlightBg }]}>
@@ -125,7 +137,7 @@ export default function MyScreen() {
 
         {/* Language Selector (한국어 / English) */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.languageTitle}</Text>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{strings.my.languageTitle}</Text>
           <View style={styles.rowGap}>
             {(
               [
@@ -143,12 +155,12 @@ export default function MyScreen() {
                   style={[
                     styles.choiceBtn,
                     {
-                      backgroundColor: active ? palette.primary : palette.surfaceElevated,
-                      borderColor: palette.border,
+                      backgroundColor: active ? palette.coral : palette.surfaceElevated,
+                      borderColor: active ? palette.coral : palette.border,
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontWeight: '700' }}>
+                  <Text style={{ color: active ? '#FFFFFF' : palette.textPrimary, fontWeight: '700' }}>
                     {langOpt.label}
                   </Text>
                 </Pressable>
@@ -160,9 +172,9 @@ export default function MyScreen() {
         {/* PWA Fullscreen Install Status (Web) */}
         {Platform.OS === 'web' && (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.pwaTitle}</Text>
+            <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{strings.my.pwaTitle}</Text>
             {isStandalonePwa ? (
-              <Text style={{ color: palette.primary, fontSize: 13, fontWeight: '600' }}>
+              <Text style={{ color: palette.coral, fontSize: 13, fontWeight: '600' }}>
                 {strings.my.pwaActive}
               </Text>
             ) : (
@@ -170,8 +182,8 @@ export default function MyScreen() {
                 <Text style={{ color: palette.textSecondary, fontSize: 13, lineHeight: 19 }}>
                   {strings.my.pwaGuide}
                 </Text>
-                <Pressable onPress={handleInstallApp} style={[styles.actionBtn, { borderColor: palette.primary }]}>
-                  <Text style={{ color: palette.primary, fontWeight: '700' }}>
+                <Pressable onPress={handleInstallApp} style={[styles.actionBtn, { borderColor: palette.coral }]}>
+                  <Text style={{ color: palette.coral, fontWeight: '700' }}>
                     {canInstallPwa ? strings.my.pwaInstallBtn : strings.my.pwaGuideBtn}
                   </Text>
                 </Pressable>
@@ -182,17 +194,17 @@ export default function MyScreen() {
 
         {/* Stats */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.statsTitle}</Text>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{strings.my.statsTitle}</Text>
           <View style={styles.statsRow}>
-            <StatBox label={strings.my.statRead} value={readEventsCount} color={palette.primary} subColor={palette.textSecondary} />
-            <StatBox label={strings.my.statSaved} value={bookmarks.length} color={palette.primary} subColor={palette.textSecondary} />
-            <StatBox label={strings.my.statNotes} value={notes.length} color={palette.primary} subColor={palette.textSecondary} />
+            <StatBox label={strings.my.statRead} value={readEventsCount} color={palette.coral} subColor={palette.textSecondary} />
+            <StatBox label={strings.my.statSaved} value={bookmarks.length} color={palette.coral} subColor={palette.textSecondary} />
+            <StatBox label={strings.my.statNotes} value={notes.length} color={palette.coral} subColor={palette.textSecondary} />
           </View>
         </View>
 
         {/* 5-step Font Size */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>
             {strings.my.fontSizeTitle(FONT_SCALE_MAP[settings.fontScaleLevel])}
           </Text>
           <View style={styles.rowGap}>
@@ -207,12 +219,12 @@ export default function MyScreen() {
                   style={[
                     styles.choiceBtn,
                     {
-                      backgroundColor: active ? palette.primary : palette.surfaceElevated,
-                      borderColor: palette.border,
+                      backgroundColor: active ? palette.coral : palette.surfaceElevated,
+                      borderColor: active ? palette.coral : palette.border,
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontWeight: '700' }}>
+                  <Text style={{ color: active ? '#FFFFFF' : palette.textPrimary, fontWeight: '700' }}>
                     {lvl}
                   </Text>
                 </Pressable>
@@ -220,7 +232,7 @@ export default function MyScreen() {
             })}
           </View>
 
-          <Text style={[styles.cardTitle, { color: palette.primary, marginTop: 6 }]}>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary, marginTop: 6 }]}>
             {strings.my.fontStyleAndLineTitle}
           </Text>
           <View style={styles.rowGap}>
@@ -238,12 +250,12 @@ export default function MyScreen() {
                   style={[
                     styles.choiceBtn,
                     {
-                      backgroundColor: active ? palette.primary : palette.surfaceElevated,
-                      borderColor: palette.border,
+                      backgroundColor: active ? palette.coral : palette.surfaceElevated,
+                      borderColor: active ? palette.coral : palette.border,
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontWeight: '600' }}>
+                  <Text style={{ color: active ? '#FFFFFF' : palette.textPrimary, fontWeight: '600' }}>
                     {f.label}
                   </Text>
                 </Pressable>
@@ -265,12 +277,12 @@ export default function MyScreen() {
                   style={[
                     styles.choiceBtn,
                     {
-                      backgroundColor: active ? palette.primary : palette.surfaceElevated,
-                      borderColor: palette.border,
+                      backgroundColor: active ? palette.coral : palette.surfaceElevated,
+                      borderColor: active ? palette.coral : palette.border,
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontWeight: '600' }}>
+                  <Text style={{ color: active ? '#FFFFFF' : palette.textPrimary, fontWeight: '600' }}>
                     {lh.label} ({lh.value})
                   </Text>
                 </Pressable>
@@ -281,7 +293,7 @@ export default function MyScreen() {
 
         {/* Theme */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.themeTitle}</Text>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{strings.my.themeTitle}</Text>
           <View style={styles.rowGap}>
             {(
               [
@@ -298,12 +310,12 @@ export default function MyScreen() {
                   style={[
                     styles.choiceBtn,
                     {
-                      backgroundColor: active ? palette.primary : palette.surfaceElevated,
-                      borderColor: palette.border,
+                      backgroundColor: active ? palette.coral : palette.surfaceElevated,
+                      borderColor: active ? palette.coral : palette.border,
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontSize: 13, fontWeight: '600' }}>
+                  <Text style={{ color: active ? '#FFFFFF' : palette.textPrimary, fontSize: 13, fontWeight: '600' }}>
                     {t.label}
                   </Text>
                 </Pressable>
@@ -319,11 +331,11 @@ export default function MyScreen() {
             <Switch
               value={settings.reduceMotion}
               onValueChange={updateReduceMotion}
-              trackColor={{ false: palette.border, true: palette.primary }}
+              trackColor={{ false: palette.border, true: palette.coral }}
             />
           </View>
 
-          <Text style={[styles.cardTitle, { color: palette.primary, marginTop: 8 }]}>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary, marginTop: 8 }]}>
             {strings.my.ttsSpeed(settings.ttsRate)}
           </Text>
           <View style={styles.rowGap}>
@@ -336,12 +348,12 @@ export default function MyScreen() {
                   style={[
                     styles.choiceBtn,
                     {
-                      backgroundColor: active ? palette.primary : palette.surfaceElevated,
-                      borderColor: palette.border,
+                      backgroundColor: active ? palette.coral : palette.surfaceElevated,
+                      borderColor: active ? palette.coral : palette.border,
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontWeight: '600' }}>
+                  <Text style={{ color: active ? '#FFFFFF' : palette.textPrimary, fontWeight: '600' }}>
                     {r}x
                   </Text>
                 </Pressable>
@@ -352,9 +364,9 @@ export default function MyScreen() {
 
         {/* Sources & Privacy */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.sourcesTitle}</Text>
-          <Pressable onPress={() => setSourcesModalOpen(true)} style={[styles.actionBtn, { borderColor: palette.primary }]}>
-            <Text style={{ color: palette.primary, fontWeight: '700' }}>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{strings.my.sourcesTitle}</Text>
+          <Pressable onPress={() => setSourcesModalOpen(true)} style={[styles.actionBtn, { borderColor: palette.coral }]}>
+            <Text style={{ color: palette.coral, fontWeight: '700' }}>
               {strings.my.sourcesBtn(rightsEntries.length)}
             </Text>
           </Pressable>
@@ -365,12 +377,12 @@ export default function MyScreen() {
 
         {/* Backup & Delete */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.backupTitle}</Text>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{strings.my.backupTitle}</Text>
           <Text style={{ color: palette.textSecondary, fontSize: 13, lineHeight: 19 }}>
             {strings.my.backupDesc}
           </Text>
-          <Pressable onPress={handleExport} style={[styles.actionBtn, { borderColor: palette.primary }]}>
-            <Text style={{ color: palette.primary, fontWeight: '700' }}>{strings.my.exportBtn}</Text>
+          <Pressable onPress={handleExport} style={[styles.actionBtn, { borderColor: palette.coral }]}>
+            <Text style={{ color: palette.coral, fontWeight: '700' }}>{strings.my.exportBtn}</Text>
           </Pressable>
           <Pressable onPress={() => setRestoreModalOpen(true)} style={[styles.actionBtn, { borderColor: palette.border }]}>
             <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>{strings.my.restoreBtn}</Text>
@@ -383,7 +395,7 @@ export default function MyScreen() {
         {/* Stage 8 Optional Feature Flags */}
         {flags.premium && (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.appName} Plus</Text>
+            <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{strings.appName} Plus</Text>
             {SUBSCRIPTION_PLANS_HYPOTHESIS.map((p) => (
               <Text key={p.id} style={{ color: palette.textPrimary, fontSize: 13 }}>
                 • {p.label}: {p.priceKrw.toLocaleString()} / {p.period}
@@ -491,16 +503,36 @@ function StatBox({ label, value, color, subColor }: { label: string; value: numb
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, gap: 14, paddingBottom: 32 },
-  title: { fontSize: 20, fontWeight: '800' },
+  content: { padding: 18, gap: 14, paddingBottom: 32 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSpacer: { width: 40, height: 40 },
+  title: { fontSize: 20, fontWeight: '800', flex: 1, textAlign: 'center' },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     gap: 8,
   },
-  card: { padding: 16, borderRadius: 16, borderWidth: 1, gap: 10 },
+  card: {
+    padding: 18,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
   cardTitle: { fontSize: 15, fontWeight: '700' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6 },
   rowGap: { flexDirection: 'row', gap: 8 },
@@ -508,14 +540,14 @@ const styles = StyleSheet.create({
   choiceBtn: {
     flex: 1,
     minHeight: MIN_TOUCH_SIZE,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionBtn: {
     minHeight: MIN_TOUCH_SIZE,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

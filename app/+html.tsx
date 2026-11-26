@@ -17,10 +17,10 @@ export default function Root({ children }: PropsWithChildren) {
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Dharma Scroll" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="#151F1B" />
+        <meta name="theme-color" content="#F5F2EB" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <title>마음스크롤 · Dharma Scroll</title>

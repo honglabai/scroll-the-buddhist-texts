@@ -13,17 +13,17 @@
     },
     "androidStatusBar": {
       "translucent": true,
-      "barStyle": "light-content"
+      "barStyle": "dark-content"
     },
     "androidNavigationBar": {
-      "backgroundColor": "#0D1310",
-      "barStyle": "light-content"
+      "backgroundColor": "#F5F2EB",
+      "barStyle": "dark-content"
     },
     "android": {
       "package": "com.honglabai.dharmascroll",
       "allowBackup": false,
       "adaptiveIcon": {
-        "backgroundColor": "#F7F4EC",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

@@ -24,7 +24,7 @@ const pwaStyleAndSw = `
         width: 100%;
         height: 100dvh;
         min-height: -webkit-fill-available;
-        background-color: #151F1B;
+        background-color: #F5F2EB;
         overscroll-behavior-y: none;
         overflow: hidden;
         margin: 0;
@@ -41,10 +41,10 @@ const pwaStyleAndSw = `
 const pwaHeadTags = `
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-touch-fullscreen" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Dharma Scroll" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#151F1B" />
+    <meta name="theme-color" content="#F5F2EB" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     ${pwaStyleAndSw}

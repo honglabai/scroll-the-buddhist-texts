@@ -11,6 +11,8 @@ function RootNavigator() {
       <StatusBar style={palette.mode === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="saved" />
+        <Stack.Screen name="my" />
       </Stack>
     </>
   );
