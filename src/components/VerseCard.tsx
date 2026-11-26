@@ -10,8 +10,15 @@ import {
   View,
 } from 'react-native';
 import { canReadWithTTS, canShareSegmentText } from '../domain/readingRules';
-import type { FontScaleLevel } from '../domain/types';
+import type { AppLanguage, FontScaleLevel } from '../domain/types';
 import type { FeedItem } from '../features/app/AppProvider';
+import {
+  getLocalizedEditionLabel,
+  getLocalizedSourceRef,
+  getLocalizedTranslator,
+  getLocalizedWorkTitle,
+  getStrings,
+} from '../i18n/strings';
 import { getFontSize, MIN_TOUCH_SIZE, type ThemePalette } from './theme';
 
 interface VerseCardProps {
@@ -21,6 +28,7 @@ interface VerseCardProps {
   cardHeight: number;
   topInset: number;
   palette: ThemePalette;
+  appLanguage?: AppLanguage;
   fontScaleLevel: FontScaleLevel;
   fontStyle: 'sans' | 'serif';
   lineHeightMultiplier: number;
@@ -46,6 +54,7 @@ export function VerseCard({
   cardHeight,
   topInset,
   palette,
+  appLanguage = 'ko',
   fontScaleLevel,
   fontStyle,
   lineHeightMultiplier,
@@ -66,6 +75,7 @@ export function VerseCard({
   const [longReadOpen, setLongReadOpen] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
 
+  const strings = getStrings(appLanguage);
   const isDark = palette.mode === 'dark';
   const fontSize = getFontSize(fontScaleLevel);
   const lineHeight = Math.round(fontSize * lineHeightMultiplier);
@@ -74,15 +84,26 @@ export function VerseCard({
       ? Platform.select({
           ios: 'AppleMyungjo',
           android: 'serif',
-          web: '"Noto Serif KR", Georgia, serif',
+          web: appLanguage === 'en' ? '"Noto Serif", Georgia, serif' : '"Noto Serif KR", Georgia, serif',
         })
-      : Platform.select({ web: '"Noto Sans KR", system-ui, sans-serif' });
+      : Platform.select({
+          web: appLanguage === 'en' ? 'system-ui, -apple-system, sans-serif' : '"Noto Sans KR", system-ui, sans-serif',
+        });
 
-  const bodyText =
-    item.segmentText?.text ?? '선택한 판본에서 이 구절의 번역을 아직 준비 중입니다.';
+  const bodyText = item.segmentText?.text ?? strings.card.missingEditionText;
   const isLongText = bodyText.length > 140 || bodyText.includes('\n');
   const ttsAllowed = canReadWithTTS(item.rights);
   const shareTextAllowed = canShareSegmentText(item.rights);
+
+  const workTitle = getLocalizedWorkTitle(item.work, appLanguage);
+  const sourceRef = getLocalizedSourceRef(item.segment, appLanguage);
+  const editionLabel = getLocalizedEditionLabel(item.edition, appLanguage);
+  const translator = getLocalizedTranslator(item.edition, appLanguage);
+  const originalEditionLabel = item.originalEdition
+    ? getLocalizedEditionLabel(item.originalEdition, appLanguage)
+    : '';
+
+  const workBadgeText = getWorkEmblem(item.work.id, workTitle, appLanguage);
 
   // Serene ambient full-screen canvas palette
   const canvasBg = isDark ? '#151F1B' : '#F6F2E8';
@@ -91,7 +112,17 @@ export function VerseCard({
   const railPillBg = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(36, 59, 48, 0.08)';
   const railIconColor = isDark ? '#F5F1E8' : '#243B30';
   const railLabelColor = isDark ? '#DCE3DC' : '#314C40';
-  const workBadgeText = item.work.title.replace(/\s*\(.*\)/, '').slice(0, 2);
+
+  // Ensure rightRail never collides with floatingTopBar on compact screens
+  const topClearance = topInset + 56;
+  const availRailHeight = Math.max(260, cardHeight - topClearance - 12);
+  const isCompactRail = availRailHeight < 460;
+  const railGap = isCompactRail ? 4 : 10;
+  const avatarCircleSize = isCompactRail ? 36 : 44;
+  const iconCircleSize = isCompactRail ? 34 : 42;
+  const audioDiscSize = isCompactRail ? 32 : 38;
+  const railIconSize = isCompactRail ? 18 : 22;
+  const railFontSize = isCompactRail ? 10 : 11;
 
   return (
     <View style={[styles.fullContainer, { height: cardHeight, backgroundColor: canvasBg }]}>
@@ -104,8 +135,8 @@ export function VerseCard({
         style={[
           styles.centerStage,
           {
-            paddingTop: topInset + 64,
-            paddingBottom: 128,
+            paddingTop: topInset + (isCompactRail ? 52 : 64),
+            paddingBottom: isCompactRail ? 112 : 128,
           },
         ]}
       >
@@ -125,7 +156,7 @@ export function VerseCard({
           </View>
           {item.rights?.isSyntheticTestFixture && (
             <Text style={[styles.fixtureBadge, { color: palette.textSecondary }]}>
-              테스트 시연용
+              {strings.card.syntheticBadge}
             </Text>
           )}
         </View>
@@ -147,7 +178,7 @@ export function VerseCard({
               ]}
             >
               <Text style={[styles.originalLabel, { color: palette.textSecondary }]}>
-                원문 · {item.originalEdition?.label}
+                {strings.card.originalLabel} · {originalEditionLabel}
               </Text>
               <Text style={[styles.originalText, { color: palette.textPrimary }]}>
                 {item.originalText.text}
@@ -171,7 +202,7 @@ export function VerseCard({
 
           {item.segmentText?.paraphrase && (
             <Text style={[styles.paraphraseText, { color: palette.textSecondary }]}>
-              쉬운 말: {item.segmentText.paraphrase}
+              {strings.card.paraphrasePrefix}: {item.segmentText.paraphrase}
             </Text>
           )}
 
@@ -179,36 +210,38 @@ export function VerseCard({
             <Pressable
               onPress={() => setLongReadOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel="장문 전체 화면으로 읽기"
+              accessibilityLabel={strings.card.readFull}
               style={[styles.expandReadBtn, { borderColor: palette.primary }]}
             >
               <Ionicons name="expand-outline" size={16} color={palette.primary} />
               <Text style={[styles.expandReadText, { color: palette.primary }]}>
-                전체 읽기 모드
+                {strings.card.readFull}
               </Text>
             </Pressable>
           )}
         </ScrollView>
       </View>
 
-      {/* Bottom-Left Floating Metadata Overlay (TikTok-style bottom caption area) */}
+      {/* Bottom-Left Floating Metadata Overlay */}
       <View style={styles.bottomLeftOverlay}>
         <Text style={[styles.bottomWorkTitle, { color: palette.textPrimary }]} numberOfLines={1}>
-          {item.work.title} · {item.segment.sourceRef}
+          {workTitle} · {sourceRef}
         </Text>
 
         <View style={styles.bottomMetaLinks}>
           <Text style={[styles.bottomAttribution, { color: palette.textSecondary }]} numberOfLines={1}>
-            {item.edition.label} · {item.edition.translator}
+            {editionLabel} · {translator}
           </Text>
           <View style={styles.inlineLinkRow}>
             <Pressable
               onPress={onOpenStudy}
               accessibilityRole="button"
-              accessibilityLabel="구절 해설 자세히 보기"
+              accessibilityLabel={strings.card.details}
               style={styles.inlineLinkBtn}
             >
-              <Text style={[styles.inlineLinkText, { color: palette.primary }]}>자세히</Text>
+              <Text style={[styles.inlineLinkText, { color: palette.primary }]}>
+                {strings.card.details}
+              </Text>
             </Pressable>
             {item.originalText && (
               <>
@@ -216,11 +249,13 @@ export function VerseCard({
                 <Pressable
                   onPress={() => setShowOriginal((v) => !v)}
                   accessibilityRole="button"
-                  accessibilityLabel={showOriginal ? '원문 숨기기' : '원문 보기'}
+                  accessibilityLabel={
+                    showOriginal ? strings.card.hideOriginal : strings.card.showOriginal
+                  }
                   style={styles.inlineLinkBtn}
                 >
                   <Text style={[styles.inlineLinkText, { color: palette.primary }]}>
-                    {showOriginal ? '원문 닫기' : '원문 보기'}
+                    {showOriginal ? strings.card.hideOriginal : strings.card.showOriginal}
                   </Text>
                 </Pressable>
               </>
@@ -234,7 +269,7 @@ export function VerseCard({
             onPress={onPrev}
             disabled={!canGoPrev}
             accessibilityRole="button"
-            accessibilityLabel="이전 구절로 이동"
+            accessibilityLabel={strings.card.prev}
             style={[
               styles.stepBtn,
               {
@@ -244,14 +279,14 @@ export function VerseCard({
             ]}
           >
             <Ionicons name="chevron-up" size={16} color={railIconColor} />
-            <Text style={[styles.stepBtnText, { color: railIconColor }]}>이전</Text>
+            <Text style={[styles.stepBtnText, { color: railIconColor }]}>{strings.card.prev}</Text>
           </Pressable>
 
           <Pressable
             onPress={onNext}
             disabled={!canGoNext}
             accessibilityRole="button"
-            accessibilityLabel="다음 구절로 이동"
+            accessibilityLabel={strings.card.next}
             style={[
               styles.stepBtn,
               {
@@ -260,109 +295,150 @@ export function VerseCard({
               },
             ]}
           >
-            <Text style={[styles.stepBtnText, { color: railIconColor }]}>다음</Text>
+            <Text style={[styles.stepBtnText, { color: railIconColor }]}>{strings.card.next}</Text>
             <Ionicons name="chevron-down" size={16} color={railIconColor} />
           </Pressable>
         </View>
       </View>
 
-      {/* Right-Side Vertical Action Rail (찜 · 해설 · 기록 · 전달 · 바이럴 · 듣기) */}
-      <View style={styles.rightRail}>
+      {/* Right-Side Vertical Action Rail */}
+      <View
+        style={[
+          styles.rightRail,
+          {
+            top: topClearance,
+            bottom: isCompactRail ? 10 : 14,
+            gap: railGap,
+          },
+        ]}
+      >
         {/* Creator/Work Emblem Avatar + Original Toggle */}
         <Pressable
           onPress={() => (item.originalText ? setShowOriginal((v) => !v) : onOpenStudy())}
           accessibilityRole="button"
-          accessibilityLabel={item.originalText ? '원문 대조 보기' : '경전 탐구 열기'}
-          style={styles.avatarButton}
+          accessibilityLabel={
+            item.originalText ? strings.card.showOriginal : strings.card.study
+          }
+          hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}
+          style={[
+            styles.avatarButton,
+            {
+              minHeight: avatarCircleSize + 8,
+              marginBottom: isCompactRail ? 0 : 4,
+            },
+          ]}
         >
           <View
             style={[
               styles.avatarCircle,
               {
+                width: avatarCircleSize,
+                height: avatarCircleSize,
+                borderRadius: avatarCircleSize / 2,
                 backgroundColor: isDark ? '#273A32' : '#314C40',
                 borderColor: '#C5A26A',
               },
             ]}
           >
-            <Text style={styles.avatarText}>{workBadgeText}</Text>
+            <Text style={[styles.avatarText, isCompactRail && { fontSize: 11 }]}>
+              {workBadgeText}
+            </Text>
           </View>
           <View style={[styles.avatarPlusBadge, { backgroundColor: '#C5A26A' }]}>
             <Ionicons name={showOriginal ? 'checkmark' : 'add'} size={12} color="#19221F" />
           </View>
         </Pressable>
 
-        {/* 찜 (마음에 담기) */}
+        {/* Save / Bookmark */}
         <RailAction
           icon={isBookmarked ? 'heart' : 'heart-outline'}
-          label={isBookmarked ? '찜함' : '찜'}
+          label={isBookmarked ? strings.card.liked : strings.card.like}
           iconColor={isBookmarked ? '#E36458' : railIconColor}
           labelColor={isBookmarked ? '#E36458' : railLabelColor}
           pillBg={railPillBg}
+          circleSize={iconCircleSize}
+          iconSize={railIconSize}
+          fontSize={railFontSize}
+          compact={isCompactRail}
           onPress={onToggleBookmark}
-          accessibilityLabel={isBookmarked ? '찜 취소하기' : '마음에 담기(찜)'}
+          accessibilityLabel={isBookmarked ? strings.card.liked : strings.card.like}
         />
 
-        {/* 해설 (구절 탐구) */}
+        {/* Study */}
         <RailAction
           icon="chatbubble-ellipses-outline"
-          label="해설"
+          label={strings.card.study}
           iconColor={railIconColor}
           labelColor={railLabelColor}
           pillBg={railPillBg}
+          circleSize={iconCircleSize}
+          iconSize={railIconSize}
+          fontSize={railFontSize}
+          compact={isCompactRail}
           onPress={onOpenStudy}
-          accessibilityLabel="구절 해설 및 원어 탐구 열기"
+          accessibilityLabel={strings.card.study}
         />
 
-        {/* 기록 (비공개 수행 일지) */}
+        {/* Note */}
         <RailAction
           icon={noteCount > 0 ? 'bookmark' : 'bookmark-outline'}
-          label={noteCount > 0 ? `기록 ${noteCount}` : '기록'}
+          label={noteCount > 0 ? `${strings.card.note} ${noteCount}` : strings.card.note}
           iconColor={noteCount > 0 ? palette.accent : railIconColor}
           labelColor={noteCount > 0 ? palette.accent : railLabelColor}
           pillBg={railPillBg}
+          circleSize={iconCircleSize}
+          iconSize={railIconSize}
+          fontSize={railFontSize}
+          compact={isCompactRail}
           onPress={onOpenNote}
-          accessibilityLabel="비공개 수행 기록 작성 및 보기"
+          accessibilityLabel={strings.card.note}
         />
 
-        {/* 전달 (즉시 공유) */}
+        {/* Forward / Share */}
         <RailAction
           icon="arrow-redo-outline"
-          label="전달"
+          label={strings.card.forward}
           iconColor={shareTextAllowed ? railIconColor : palette.secondary}
           labelColor={railLabelColor}
           pillBg={railPillBg}
+          circleSize={iconCircleSize}
+          iconSize={railIconSize}
+          fontSize={railFontSize}
+          compact={isCompactRail}
           onPress={onShareForward}
-          accessibilityLabel={shareTextAllowed ? '지인에게 구절 전달하기' : '출처 링크만 전달하기'}
+          accessibilityLabel={strings.card.forward}
         />
 
-        {/* 바이럴 (SNS 카드 생성/복사/공유) */}
+        {/* Viral Card */}
         <RailAction
           icon="sparkles-outline"
-          label="바이럴"
+          label={strings.card.viral}
           iconColor={palette.accent}
           labelColor={railLabelColor}
           pillBg={railPillBg}
+          circleSize={iconCircleSize}
+          iconSize={railIconSize}
+          fontSize={railFontSize}
+          compact={isCompactRail}
           onPress={onOpenViralCard}
-          accessibilityLabel="SNS 바이럴 카드 만들기 및 공유"
+          accessibilityLabel={strings.card.viral}
         />
 
-        {/* 듣기 디스크 (TTS) */}
+        {/* Audio / TTS */}
         <Pressable
           onPress={onToggleTts}
           accessibilityRole="button"
-          accessibilityLabel={
-            !ttsAllowed
-              ? '음성 낭독 미지원 판본'
-              : isTtsActive
-                ? '음성 낭독 정지'
-                : '음성으로 듣기'
-          }
-          style={styles.audioDiscWrap}
+          hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}
+          accessibilityLabel={isTtsActive ? strings.card.ttsStop : strings.card.ttsPlay}
+          style={[styles.audioDiscWrap, isCompactRail && { minHeight: 40, marginTop: 0 }]}
         >
           <View
             style={[
               styles.audioDisc,
               {
+                width: audioDiscSize,
+                height: audioDiscSize,
+                borderRadius: audioDiscSize / 2,
                 backgroundColor: isTtsActive ? '#C5A26A' : isDark ? '#25352E' : '#314C40',
                 borderColor: isTtsActive ? '#F7F4EC' : '#C5A26A',
                 opacity: ttsAllowed ? 1 : 0.45,
@@ -371,12 +447,12 @@ export function VerseCard({
           >
             <Ionicons
               name={isTtsActive ? 'stop' : 'musical-notes-outline'}
-              size={18}
+              size={isCompactRail ? 15 : 18}
               color={isTtsActive ? '#19221F' : '#F7F4EC'}
             />
           </View>
-          <Text style={[styles.railLabel, { color: railLabelColor }]}>
-            {isTtsActive ? '정지' : '낭독'}
+          <Text style={[styles.railLabel, { color: railLabelColor, fontSize: railFontSize }]}>
+            {isTtsActive ? strings.card.ttsStop : strings.card.ttsPlay}
           </Text>
         </Pressable>
       </View>
@@ -390,12 +466,12 @@ export function VerseCard({
         <View style={[styles.modalContainer, { backgroundColor: palette.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: palette.border }]}>
             <Text style={[styles.modalTitle, { color: palette.primary }]}>
-              {item.work.title} · {item.segment.sourceRef}
+              {workTitle} · {sourceRef}
             </Text>
             <Pressable
               onPress={() => setLongReadOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel="전체 읽기 닫기"
+              accessibilityLabel={strings.card.readFullClose}
               style={styles.closeBtn}
             >
               <Ionicons name="close" size={24} color={palette.textPrimary} />
@@ -417,12 +493,38 @@ export function VerseCard({
   );
 }
 
+function getWorkEmblem(workId: string, localizedTitle: string, lang: AppLanguage): string {
+  if (lang === 'en') {
+    const enMap: Record<string, string> = {
+      'work-diamond': 'DM',
+      'work-heart': 'HT',
+      'work-dhp': 'DH',
+      'work-kp': 'KP',
+      'work-sn56-11': 'SN',
+      'work-snp': 'NP',
+      'work-iti': 'IT',
+      'work-ud': 'UD',
+    };
+    return enMap[workId] ?? localizedTitle.slice(0, 2).toUpperCase();
+  }
+  const koMap: Record<string, string> = {
+    'work-diamond': '금강',
+    'work-heart': '반야',
+    'work-cheonsu': '천수',
+  };
+  return koMap[workId] ?? localizedTitle.replace(/\s*\(.*\)/, '').slice(0, 2);
+}
+
 function RailAction({
   icon,
   label,
   iconColor,
   labelColor,
   pillBg,
+  circleSize,
+  iconSize,
+  fontSize,
+  compact,
   onPress,
   accessibilityLabel,
 }: {
@@ -431,6 +533,10 @@ function RailAction({
   iconColor: string;
   labelColor: string;
   pillBg: string;
+  circleSize: number;
+  iconSize: number;
+  fontSize: number;
+  compact: boolean;
   onPress: () => void;
   accessibilityLabel: string;
 }) {
@@ -439,12 +545,23 @@ function RailAction({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={styles.railBtn}
+      hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}
+      style={[styles.railBtn, compact && { minHeight: 38, gap: 1 }]}
     >
-      <View style={[styles.railIconCircle, { backgroundColor: pillBg }]}>
-        <Ionicons name={icon} size={23} color={iconColor} />
+      <View
+        style={[
+          styles.railIconCircle,
+          {
+            width: circleSize,
+            height: circleSize,
+            borderRadius: circleSize / 2,
+            backgroundColor: pillBg,
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={iconSize} color={iconColor} />
       </View>
-      <Text style={[styles.railLabel, { color: labelColor }]}>{label}</Text>
+      <Text style={[styles.railLabel, { color: labelColor, fontSize }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -596,9 +713,8 @@ const styles = StyleSheet.create({
   rightRail: {
     position: 'absolute',
     right: 10,
-    bottom: 14,
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 10,
   },
   avatarButton: {
     minWidth: MIN_TOUCH_SIZE,

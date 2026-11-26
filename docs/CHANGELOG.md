@@ -21,3 +21,7 @@
 - 풀스크린 세로 스크롤 레이아웃 개편: 상단 플로팅 투명 내비게이션(순차/주제/판본 + 검색), 좌하단 경전·해설/원문 링크 오버레이, 우측 액션 레일(경전 배지/원문 토글, 찜, 해설, 기록, 전달, 바이럴 카드, 낭독 디스크) 및 SNS 공유용 `ViralShareModal`(PNG 카드 저장/문구 복사/전달) 추가, 하단 5탭 중앙 수행 강조 바 적용.
 - 무료/오픈 라이선스 경전 대폭 확충(`scripts/import-open-scriptures.ts`, `assets/content/open-scriptures.json`): 9개 문헌·18개 판본·775개 구절·1,550개 본문 수록(금강경 32분 완역·반야심경·천수경 한국어+한문, 법구경 423게송 완역·소송경 9편·초전법륜경·숫타니파타 73경·여시어경 112경·우다나 80경 팔리어+CC0 영어) 및 `--production` 빌드 검증 100% 통과.
 - 주소창/브라우저 메뉴 없는 전체화면 앱 실행 지원: PWA 매니페스트(`public/manifest.webmanifest` `display: standalone`), 서비스 워커(`public/sw.js`), iOS/Android `apple-mobile-web-app-capable`/`viewport-fit=cover` 메타태그 및 `100dvh` 처리(`scripts/prepare-web-pwa.ts`), 웹 전체화면 토글 및 네이티브 translucent status bar 설정.
+- 한국어/영어 단일 언어 통일 및 WebAPK 풀스크린·레이아웃 보완:
+  - `public/manifest.webmanifest` `id`/`start_url`/`scope`를 `/`로 통일하고 `display: "fullscreen"` 및 `display_override: ["fullscreen", "standalone"]` 적용, `any`/`maskable` 아이콘 분리, `app/+html.tsx`에 매니페스트·전체화면 메타태그 직접 삽입 및 `vercel.json` 매니페스트 `Cache-Control: max-age=0, must-revalidate` 보완 (`dharma-scroll-shell-v2`).
+  - `VerseCard` 우측 액션 레일에 상단 바 높이 기준 여백(`top: topInset + 56`)과 컴팩트 반응형 축소 레이아웃을 적용해 작은 화면에서도 상단 검색 아이콘과 겹치지 않도록 개선.
+  - 영어 위키문헌 퍼블릭 도메인(CC0/PD-author-release) 금강경 32분 및 반야심경 영어 판본 추가(`20개 판본 · 1,591개 본문`), 전 화면·탭·모달·검색·읽기 계획·해설·공유·TTS에 한국어(`ko`) / 영어(`en`) 일관 전환 적용.

@@ -11,7 +11,13 @@ import {
   View,
 } from 'react-native';
 import { canShareSegmentText } from '../domain/readingRules';
-import type { FeedItem } from '../features/app/AppProvider';
+import { useApp, type FeedItem } from '../features/app/AppProvider';
+import {
+  getLocalizedEditionLabel,
+  getLocalizedSourceRef,
+  getLocalizedTranslator,
+  getLocalizedWorkTitle,
+} from '../i18n/strings';
 import { buildSharePayload } from '../services/shareService';
 import { MIN_TOUCH_SIZE } from './theme';
 
@@ -69,6 +75,7 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
 
 function downloadQuoteCardPngWeb(params: {
   preset: CardStylePreset;
+  brandHeading: string;
   workTitle: string;
   sourceRef: string;
   bodyText: string;
@@ -91,7 +98,7 @@ function downloadQuoteCardPngWeb(params: {
 
   ctx.fillStyle = style.accent;
   ctx.font = '600 32px sans-serif';
-  ctx.fillText('마음스크롤 · Dharma Scroll', 110, 145);
+  ctx.fillText(params.brandHeading, 110, 145);
 
   ctx.fillStyle = style.sub;
   ctx.font = '600 30px sans-serif';
@@ -124,6 +131,7 @@ export function ViralShareModal({
   item: FeedItem | null;
   onClose: () => void;
 }) {
+  const { appLanguage, strings } = useApp();
   const [preset, setPreset] = useState<CardStylePreset>('forest');
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -135,34 +143,39 @@ export function ViralShareModal({
       edition: item.edition,
       segmentText: item.segmentText,
       rights: item.rights,
+      appLanguage,
     });
-  }, [item]);
+  }, [appLanguage, item]);
 
   if (!item || !item.segmentText) return null;
 
+  const workTitle = getLocalizedWorkTitle(item.work, appLanguage);
+  const sourceRef = getLocalizedSourceRef(item.segment, appLanguage);
+  const edLabel = getLocalizedEditionLabel(item.edition, appLanguage);
+  const translator = getLocalizedTranslator(item.edition, appLanguage);
+
   const allowText = canShareSegmentText(item.rights);
   const cardTheme = CARD_PRESETS[preset];
-  const cardBody = allowText
-    ? item.segmentText.text
-    : '[권리 제한 안내] 이 판본은 원문 본문 재배포가 제한되어 출처 링크만 공유할 수 있습니다.';
-  const attribution = `${item.edition.label} · ${item.edition.translator}`;
+  const cardBody = allowText ? item.segmentText.text : strings.viralModal.restrictedBody;
+  const attribution = `${edLabel} · ${translator}`;
+  const brandHeading = appLanguage === 'en' ? 'Dharma Scroll' : '마음스크롤 · Dharma Scroll';
 
   const handleCopy = async () => {
-    const textToCopy = shareInfo?.message ?? `${item.work.title} · ${item.segment.sourceRef}`;
+    const textToCopy = shareInfo?.message ?? `${workTitle} · ${sourceRef}`;
     if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
       await navigator.clipboard.writeText(textToCopy);
-      setFeedback('구절과 출처가 클립보드에 복사되었습니다.');
+      setFeedback(strings.viralModal.copiedMsg);
       return;
     }
-    await Share.share({ title: shareInfo?.title ?? item.work.title, message: textToCopy });
+    await Share.share({ title: shareInfo?.title ?? workTitle, message: textToCopy });
   };
 
   const handleNativeOrWebShare = async () => {
-    const message = shareInfo?.message ?? `${item.work.title} · ${item.segment.sourceRef}`;
+    const message = shareInfo?.message ?? `${workTitle} · ${sourceRef}`;
     if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: `${item.work.title} · ${item.segment.sourceRef}`,
+          title: `${workTitle} · ${sourceRef}`,
           text: message,
           url: typeof window !== 'undefined' ? window.location.href : undefined,
         });
@@ -172,7 +185,7 @@ export function ViralShareModal({
       }
     }
     await Share.share({
-      title: shareInfo?.title ?? item.work.title,
+      title: shareInfo?.title ?? workTitle,
       message,
     });
   };
@@ -181,12 +194,13 @@ export function ViralShareModal({
     if (Platform.OS === 'web') {
       downloadQuoteCardPngWeb({
         preset,
-        workTitle: item.work.title,
-        sourceRef: item.segment.sourceRef,
+        brandHeading,
+        workTitle,
+        sourceRef,
         bodyText: cardBody,
         attribution,
       });
-      setFeedback('SNS 공유용 카드 이미지(PNG)를 저장했습니다.');
+      setFeedback(strings.viralModal.savedImageMsg);
       return;
     }
     handleNativeOrWebShare();
@@ -198,8 +212,8 @@ export function ViralShareModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>마음 나누기 · 바이럴 카드</Text>
-              <Text style={styles.subtitle}>한 구절의 울림을 이미지 카드나 문구로 전해 보세요</Text>
+              <Text style={styles.title}>{strings.viralModal.title}</Text>
+              <Text style={styles.subtitle}>{strings.viralModal.subtitle}</Text>
             </View>
             <Pressable
               onPress={() => {
@@ -207,7 +221,7 @@ export function ViralShareModal({
                 onClose();
               }}
               accessibilityRole="button"
-              accessibilityLabel="공유 카드 닫기"
+              accessibilityLabel={strings.noteModal.discard}
               style={styles.closeBtn}
             >
               <Ionicons name="close" size={24} color="#F2EFE6" />
@@ -232,7 +246,7 @@ export function ViralShareModal({
                     ]}
                   >
                     <Text style={{ color: '#F2EFE6', fontWeight: '700', fontSize: 13 }}>
-                      {CARD_PRESETS[key].label} 카드
+                      {strings.viralModal.presets[key]}
                     </Text>
                   </Pressable>
                 );
@@ -249,11 +263,11 @@ export function ViralShareModal({
               <View style={styles.cardTop}>
                 <Ionicons name="flower-outline" size={18} color={cardTheme.accent} />
                 <Text style={{ color: cardTheme.accent, fontWeight: '700', fontSize: 12 }}>
-                  마음스크롤 · Dharma Scroll
+                  {brandHeading}
                 </Text>
               </View>
               <Text style={{ color: cardTheme.sub, fontSize: 12, fontWeight: '600' }}>
-                {item.work.title} · {item.segment.sourceRef}
+                {workTitle} · {sourceRef}
               </Text>
               <Text style={[styles.previewBody, { color: cardTheme.text }]} numberOfLines={8}>
                 {cardBody}
@@ -272,33 +286,33 @@ export function ViralShareModal({
               <Pressable
                 onPress={handleSaveCardImage}
                 accessibilityRole="button"
-                accessibilityLabel="SNS 카드 이미지 저장 또는 공유"
+                accessibilityLabel={strings.viralModal.saveImage}
                 style={[styles.primaryBtn, { backgroundColor: '#C5A26A' }]}
               >
                 <Ionicons name="image-outline" size={18} color="#19221F" />
                 <Text style={styles.primaryBtnText}>
-                  {Platform.OS === 'web' ? '카드 이미지 저장' : '카드 공유'}
+                  {Platform.OS === 'web' ? strings.viralModal.saveImage : strings.viralModal.shareCard}
                 </Text>
               </Pressable>
 
               <Pressable
                 onPress={handleCopy}
                 accessibilityRole="button"
-                accessibilityLabel="구절 문구 복사"
+                accessibilityLabel={strings.viralModal.copyText}
                 style={[styles.secondaryBtn, { borderColor: '#526756' }]}
               >
                 <Ionicons name="copy-outline" size={18} color="#F2EFE6" />
-                <Text style={styles.secondaryBtnText}>문구 복사</Text>
+                <Text style={styles.secondaryBtnText}>{strings.viralModal.copyText}</Text>
               </Pressable>
 
               <Pressable
                 onPress={handleNativeOrWebShare}
                 accessibilityRole="button"
-                accessibilityLabel="전달 및 외부 앱 공유"
+                accessibilityLabel={strings.viralModal.sendFriend}
                 style={[styles.secondaryBtn, { borderColor: '#526756' }]}
               >
                 <Ionicons name="paper-plane-outline" size={18} color="#F2EFE6" />
-                <Text style={styles.secondaryBtnText}>지인에게 전달</Text>
+                <Text style={styles.secondaryBtnText}>{strings.viralModal.sendFriend}</Text>
               </Pressable>
             </View>
           </ScrollView>

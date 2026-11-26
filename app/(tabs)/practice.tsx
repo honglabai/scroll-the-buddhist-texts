@@ -13,11 +13,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import { useApp } from '../../src/features/app/AppProvider';
+import { getLocalizedPlanDesc, getLocalizedPlanTitle } from '../../src/i18n/strings';
 
 export default function PracticeScreen() {
   const router = useRouter();
   const {
     palette,
+    appLanguage,
+    strings,
     plans,
     planProgressMap,
     readEventsCount,
@@ -55,18 +58,18 @@ export default function PracticeScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.title, { color: palette.primary }]}>수행과 읽기 계획</Text>
+        <Text style={[styles.title, { color: palette.primary }]}>{strings.practice.title}</Text>
         <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-          경쟁이나 강요 없이, 스스로의 호흡에 맞추어 이어갑니다. (누적 읽은 구절 {readEventsCount}회)
+          {strings.practice.subtitle(readEventsCount)}
         </Text>
 
         {/* Breathing / Reflection Timer */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <View style={styles.rowBetween}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: palette.primary }]}>고요한 호흡 명상 타이머</Text>
+              <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.practice.timerTitle}</Text>
               <Text style={{ color: palette.textSecondary, fontSize: 13, marginTop: 4 }}>
-                오늘 읽은 구절을 떠올리며 3분간 호흡을 살핍니다.
+                {strings.practice.timerDesc}
               </Text>
             </View>
             <Text style={[styles.timerText, { color: palette.accent }]}>{formatTimer(meditationSec)}</Text>
@@ -80,7 +83,11 @@ export default function PracticeScreen() {
               style={[styles.btn, { backgroundColor: palette.primary }]}
             >
               <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>
-                {timerRunning ? '일시 정지' : meditationSec === 0 ? '다시 시작' : '명상 시작'}
+                {timerRunning
+                  ? strings.practice.pause
+                  : meditationSec === 0
+                    ? strings.practice.restart
+                    : strings.practice.start}
               </Text>
             </Pressable>
             <Pressable
@@ -90,13 +97,13 @@ export default function PracticeScreen() {
               }}
               style={[styles.btnOutline, { borderColor: palette.border }]}
             >
-              <Text style={{ color: palette.primary, fontWeight: '600' }}>초기화</Text>
+              <Text style={{ color: palette.primary, fontWeight: '600' }}>{strings.practice.reset}</Text>
             </Pressable>
           </View>
         </View>
 
         {/* Reading Plans */}
-        <Text style={[styles.sectionHeader, { color: palette.primary }]}>읽기 계획 (7 / 30 / 100일)</Text>
+        <Text style={[styles.sectionHeader, { color: palette.primary }]}>{strings.practice.plansTitle}</Text>
         {plans.map((plan) => {
           const prog = planProgressMap[plan.id];
           const completedCount = prog?.completedDays.length ?? 0;
@@ -106,13 +113,16 @@ export default function PracticeScreen() {
           return (
             <View key={plan.id} style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
               <View style={styles.rowBetween}>
-                <Text style={[styles.cardTitle, { color: palette.primary }]}>{plan.title}</Text>
+                <Text style={[styles.cardTitle, { color: palette.primary, flex: 1 }]}>
+                  {getLocalizedPlanTitle(plan, appLanguage)}
+                </Text>
                 <Text style={{ color: palette.accent, fontWeight: '700', fontSize: 13 }}>
-                  {completedCount} / {plan.durationDays}일 ({pct}%)
+                  {completedCount} / {plan.durationDays}
+                  {strings.practice.daysUnit} ({pct}%)
                 </Text>
               </View>
               <Text style={{ color: palette.textPrimary, fontSize: 14, lineHeight: 20 }}>
-                {plan.description}
+                {getLocalizedPlanDesc(plan, appLanguage)}
               </Text>
 
               <View style={[styles.progressTrack, { backgroundColor: palette.background }]}>
@@ -124,7 +134,9 @@ export default function PracticeScreen() {
                   onPress={() => startPlan(plan.id)}
                   style={[styles.btn, { backgroundColor: palette.primary }]}
                 >
-                  <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>계획 시작하기</Text>
+                  <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>
+                    {strings.practice.startPlan}
+                  </Text>
                 </Pressable>
               ) : (
                 <View style={{ gap: 10 }}>
@@ -141,7 +153,7 @@ export default function PracticeScreen() {
                       style={[styles.btn, { backgroundColor: palette.primary }]}
                     >
                       <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>
-                        {nextDay}일차 읽기
+                        {strings.practice.readDay(nextDay)}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -153,19 +165,21 @@ export default function PracticeScreen() {
                       style={[styles.btnOutline, { borderColor: palette.primary }]}
                     >
                       <Ionicons name="checkmark" size={16} color={palette.primary} />
-                      <Text style={{ color: palette.primary, fontWeight: '600' }}>수동 완료</Text>
+                      <Text style={{ color: palette.primary, fontWeight: '600' }}>
+                        {strings.practice.manualComplete}
+                      </Text>
                     </Pressable>
                   </View>
 
                   <View style={styles.rowBetween}>
                     <Text style={{ color: palette.textSecondary, fontSize: 13 }}>
-                      매일 아침 08:00 알림 (선택)
+                      {strings.practice.reminderLabel}
                     </Text>
                     <Switch
                       value={prog.reminderEnabled}
                       onValueChange={async (val) => {
                         const msg = await togglePlanReminder(plan.id, val, 8, 0);
-                        if (msg) Alert.alert('알림 안내', msg);
+                        if (msg) Alert.alert(strings.practice.reminderAlertTitle, msg);
                       }}
                       trackColor={{ false: palette.border, true: palette.primary }}
                     />

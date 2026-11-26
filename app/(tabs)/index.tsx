@@ -21,6 +21,12 @@ import { ViralShareModal } from '../../src/components/ViralShareModal';
 import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import { TOPICS } from '../../src/domain/readingRules';
 import { useApp, type FeedItem } from '../../src/features/app/AppProvider';
+import {
+  getLocalizedEditionLabel,
+  getLocalizedTopicLabel,
+  getLocalizedTranslator,
+  getLocalizedWorkTitle,
+} from '../../src/i18n/strings';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -29,6 +35,8 @@ export default function HomeScreen() {
     ready,
     error,
     palette,
+    appLanguage,
+    strings,
     settings,
     reduceMotionEffective,
     currentWork,
@@ -46,6 +54,7 @@ export default function HomeScreen() {
     navigateToSegmentById,
     selectTopicFeed,
     switchEdition,
+    setAppLanguage,
     onSegmentFocused,
     toggleBookmark,
     shareCurrentVerse,
@@ -67,6 +76,7 @@ export default function HomeScreen() {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
     const standalone =
       window.matchMedia?.('(display-mode: standalone)').matches ||
+      window.matchMedia?.('(display-mode: fullscreen)').matches ||
       Boolean((window.navigator as { standalone?: boolean }).standalone);
     const onFsChange = () => {
       setIsWebFullscreen(Boolean(document.fullscreenElement));
@@ -88,7 +98,7 @@ export default function HomeScreen() {
         await document.exitFullscreen();
       }
     } catch {
-      setNoticeBanner('브라우저에서 홈 화면에 추가(앱 설치)하시면 주소창 없이 전체화면으로 실행됩니다.');
+      setNoticeBanner(strings.home.fullscreenHint);
     }
   };
 
@@ -176,7 +186,7 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: palette.background }]}>
         <ActivityIndicator size="large" color={palette.primary} />
-        <Text style={{ color: palette.textSecondary, marginTop: 12 }}>경전을 불러오는 중...</Text>
+        <Text style={{ color: palette.textSecondary, marginTop: 12 }}>{strings.home.loading}</Text>
       </SafeAreaView>
     );
   }
@@ -184,7 +194,9 @@ export default function HomeScreen() {
   if (error) {
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: palette.background }]}>
-        <Text style={{ color: palette.danger, fontSize: 16, fontWeight: '700' }}>오류</Text>
+        <Text style={{ color: palette.danger, fontSize: 16, fontWeight: '700' }}>
+          {strings.home.errorTitle}
+        </Text>
         <Text style={{ color: palette.textPrimary, marginTop: 8 }}>{error}</Text>
       </SafeAreaView>
     );
@@ -194,11 +206,13 @@ export default function HomeScreen() {
   const outerBackdrop = isDark ? '#0D1310' : '#EAE4D5';
   const topOverlayText = isDark ? '#F2EFE6' : '#243B30';
   const topOverlayMuted = isDark ? 'rgba(242,239,230,0.65)' : 'rgba(36,59,48,0.58)';
+  const currentWorkTitle = currentWork ? getLocalizedWorkTitle(currentWork, appLanguage) : '';
+  const activeTopicDisplay = activeTopic ? getLocalizedTopicLabel(activeTopic, appLanguage) : null;
 
   return (
     <View style={[styles.screenOuter, { backgroundColor: outerBackdrop }]}>
       <View style={styles.stageColumn} onLayout={onFeedLayout}>
-        {/* Floating Transparent Top Overlay (TikTok-style top navigation) */}
+        {/* Floating Transparent Top Overlay */}
         <View
           style={[
             styles.floatingTopBar,
@@ -210,7 +224,7 @@ export default function HomeScreen() {
           <Pressable
             onPress={() => setEditionModalOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="판본 및 경전 정보 열기"
+            accessibilityLabel={strings.home.editionModalTitle}
             style={styles.topIconBtn}
           >
             <Ionicons name="flower-outline" size={22} color={topOverlayText} />
@@ -231,7 +245,7 @@ export default function HomeScreen() {
                   { color: currentMode === 'sequential' ? topOverlayText : topOverlayMuted },
                 ]}
               >
-                순차
+                {strings.home.sequential}
               </Text>
               {currentMode === 'sequential' && (
                 <View style={[styles.topUnderline, { backgroundColor: topOverlayText }]} />
@@ -250,7 +264,7 @@ export default function HomeScreen() {
                   { color: currentMode === 'topic' ? topOverlayText : topOverlayMuted },
                 ]}
               >
-                {activeTopic ? activeTopic : '주제'}
+                {activeTopicDisplay ?? strings.home.topic}
               </Text>
               {currentMode === 'topic' && (
                 <View style={[styles.topUnderline, { backgroundColor: topOverlayText }]} />
@@ -260,21 +274,31 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => setEditionModalOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel="번역 판본 변경"
+              accessibilityLabel={strings.home.editionModalTitle}
               style={styles.topTabBtn}
             >
               <Text style={[styles.topTabText, { color: topOverlayMuted }]}>
-                {currentEdition?.lang.toUpperCase() ?? '판본'}
+                {currentEdition?.lang.toUpperCase() ?? strings.home.edition}
               </Text>
             </Pressable>
           </View>
 
           <View style={styles.topRightIcons}>
+            <Pressable
+              onPress={() => setAppLanguage(appLanguage === 'ko' ? 'en' : 'ko')}
+              accessibilityRole="button"
+              accessibilityLabel={appLanguage === 'ko' ? 'Switch to English' : '한국어로 전환'}
+              style={styles.langTogglePill}
+            >
+              <Text style={[styles.langToggleText, { color: topOverlayText }]}>
+                {appLanguage === 'ko' ? 'EN' : '한글'}
+              </Text>
+            </Pressable>
             {Platform.OS === 'web' && !isStandalonePwa && (
               <Pressable
                 onPress={toggleWebFullscreen}
                 accessibilityRole="button"
-                accessibilityLabel={isWebFullscreen ? '전체 화면 종료' : '주소창 없이 전체 화면'}
+                accessibilityLabel={isWebFullscreen ? strings.home.fullscreenExit : strings.home.fullscreenEnter}
                 style={styles.topIconBtn}
               >
                 <Ionicons
@@ -287,7 +311,7 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => router.push('/(tabs)/library')}
               accessibilityRole="button"
-              accessibilityLabel="경전 검색으로 이동"
+              accessibilityLabel={strings.tabs.library}
               style={styles.topIconBtn}
             >
               <Ionicons name="search-outline" size={22} color={topOverlayText} />
@@ -315,7 +339,7 @@ export default function HomeScreen() {
         {/* Full-Screen Vertical Snap Feed */}
         {feedItems.length === 0 ? (
           <View style={[styles.center, { backgroundColor: palette.background }]}>
-            <Text style={{ color: palette.textSecondary, fontSize: 15 }}>표시할 경전 구절이 없습니다.</Text>
+            <Text style={{ color: palette.textSecondary, fontSize: 15 }}>{strings.home.emptyFeed}</Text>
           </View>
         ) : (
           <FlatList
@@ -341,20 +365,22 @@ export default function HomeScreen() {
                 <View style={[styles.endInner, { backgroundColor: palette.card, borderColor: palette.border }]}>
                   <Ionicons name="checkmark-circle-outline" size={44} color={palette.primary} />
                   <Text style={[styles.endTitle, { color: palette.primary }]}>
-                    {currentMode === 'topic'
-                      ? `${activeTopic} 주제 읽기를 마쳤습니다`
-                      : `${currentWork?.title} 끝까지 읽었습니다`}
+                    {currentMode === 'topic' && activeTopicDisplay
+                      ? strings.home.endTopic(activeTopicDisplay)
+                      : strings.home.endWork(currentWorkTitle)}
                   </Text>
                   <Text style={[styles.endDesc, { color: palette.textSecondary }]}>
-                    잠시 숨을 고르며 오늘 마음에 남았던 구절을 떠올려 보세요.
+                    {strings.home.endDesc}
                   </Text>
                   <Pressable
                     onPress={() => router.push('/(tabs)/library')}
                     accessibilityRole="button"
-                    accessibilityLabel="다음 경전 선택하기"
+                    accessibilityLabel={strings.home.chooseNext}
                     style={[styles.endBtn, { backgroundColor: palette.primary }]}
                   >
-                    <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>다음 경전 선택하기</Text>
+                    <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>
+                      {strings.home.chooseNext}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -367,6 +393,7 @@ export default function HomeScreen() {
                 cardHeight={feedHeight}
                 topInset={Math.max(insets.top, 10)}
                 palette={palette}
+                appLanguage={appLanguage}
                 fontScaleLevel={settings.fontScaleLevel}
                 fontStyle={settings.fontStyle}
                 lineHeightMultiplier={settings.lineHeightMultiplier}
@@ -377,13 +404,18 @@ export default function HomeScreen() {
                 canGoNext={index < feedItems.length - 1}
                 onPrev={() => scrollToIndex(index - 1)}
                 onNext={() => scrollToIndex(index + 1)}
-                onToggleBookmark={() => toggleBookmark(item.segment.id, item.edition.id)}
+                onToggleBookmark={() =>
+                  toggleBookmark(item.segment.id, item.edition.id, strings.saved.defaultFolder)
+                }
                 onOpenStudy={() => setStudyItem(item)}
                 onOpenNote={() => setNoteItem(item)}
                 onShareForward={async () => {
                   const res = await shareCurrentVerse(item);
                   if (!res.textIncluded) {
-                    Alert.alert('전달 안내', '이 판본은 원문 본문 공유가 제한되어 출처 정보만 전달되었습니다.');
+                    Alert.alert(
+                      strings.home.shareRestrictedAlertTitle,
+                      strings.home.shareRestrictedAlertBody
+                    );
                   }
                 }}
                 onOpenViralCard={() => setViralItem(item)}
@@ -409,7 +441,7 @@ export default function HomeScreen() {
           } else {
             const moved = await navigateToSegmentById(segId);
             if (!moved) {
-              setNoticeBanner('해당 구절을 찾을 수 없습니다.');
+              setNoticeBanner(strings.home.missingSegment);
             }
           }
         }}
@@ -439,7 +471,9 @@ export default function HomeScreen() {
               { backgroundColor: palette.surfaceElevated, borderColor: palette.border },
             ]}
           >
-            <Text style={[styles.sheetTitle, { color: palette.primary }]}>번역 및 원문 판본 선택</Text>
+            <Text style={[styles.sheetTitle, { color: palette.primary }]}>
+              {strings.home.editionModalTitle}
+            </Text>
             {editionsForCurrentWork.map((ed) => {
               const selected = currentEdition?.id === ed.id;
               return (
@@ -461,9 +495,11 @@ export default function HomeScreen() {
                   ]}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: palette.textPrimary, fontWeight: '700' }}>{ed.label}</Text>
+                    <Text style={{ color: palette.textPrimary, fontWeight: '700' }}>
+                      {getLocalizedEditionLabel(ed, appLanguage)}
+                    </Text>
                     <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
-                      {ed.translator} · {ed.licenseId}
+                      {getLocalizedTranslator(ed, appLanguage)} · {ed.licenseId}
                     </Text>
                   </View>
                   {selected && <Ionicons name="checkmark" size={20} color={palette.primary} />}
@@ -492,7 +528,9 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <Text style={[styles.sheetTitle, { color: palette.primary }]}>주제별 읽기 선택</Text>
+            <Text style={[styles.sheetTitle, { color: palette.primary }]}>
+              {strings.home.topicModalTitle}
+            </Text>
             <ScrollView contentContainerStyle={{ gap: 8 }}>
               {TOPICS.map((t) => (
                 <Pressable
@@ -503,7 +541,9 @@ export default function HomeScreen() {
                   }}
                   style={[styles.sheetRow, { borderColor: palette.border }]}
                 >
-                  <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>{t.label}</Text>
+                  <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>
+                    {getLocalizedTopicLabel(t.id, appLanguage)}
+                  </Text>
                   <Ionicons name="chevron-forward" size={18} color={palette.textSecondary} />
                 </Pressable>
               ))}
@@ -558,6 +598,22 @@ const styles = StyleSheet.create({
   topRightIcons: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 2,
+  },
+  langTogglePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(197,162,106,0.45)',
+    backgroundColor: 'rgba(197,162,106,0.14)',
+    minHeight: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  langToggleText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   topTabsRow: {
     flexDirection: 'row',

@@ -12,6 +12,7 @@ export type RelatedLinkType = 'parallel_sutta' | 'thematic_related';
 export type ReadingMode = 'sequential' | 'topic';
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontScaleLevel = 1 | 2 | 3 | 4 | 5;
+export type AppLanguage = 'ko' | 'en';
 
 export interface RightsManifestEntry {
   workId: string;
@@ -42,11 +43,14 @@ export interface RightsManifest {
 export interface Work {
   id: string;
   title: string;
+  titleEn?: string;
   subtitle?: string;
+  subtitleEn?: string;
   tradition: Tradition;
   type: WorkType;
   totalSegments: number;
   description?: string;
+  descriptionEn?: string;
 }
 
 export interface Edition {
@@ -54,7 +58,9 @@ export interface Edition {
   workId: string;
   lang: 'ko' | 'pi' | 'zh' | 'en';
   label: string;
+  labelEn?: string;
   translator: string;
+  translatorEn?: string;
   licenseId: string;
   sourceRevision: string;
   isOriginal: boolean;
@@ -66,6 +72,7 @@ export interface Section {
   parentId: string | null;
   ordinal: number;
   title: string;
+  titleEn?: string;
   sourceRef: string;
 }
 
@@ -75,6 +82,7 @@ export interface Segment {
   sectionId: string;
   ordinal: number;
   sourceRef: string;
+  sourceRefEn?: string;
   topics: string[];
 }
 
@@ -98,8 +106,11 @@ export interface Annotation {
   editionId: string;
   kind: AnnotationKind;
   title?: string;
+  titleEn?: string;
   body: string;
+  bodyEn?: string;
   source: string;
+  sourceEn?: string;
   uncertaintyNote?: string;
   reviewStatus: ReviewStatus;
 }
@@ -110,8 +121,11 @@ export interface RelatedLink {
   toId: string;
   type: RelatedLinkType;
   targetTitle: string;
+  targetTitleEn?: string;
   targetRef: string;
+  targetRefEn?: string;
   evidence: string;
+  evidenceEn?: string;
   reviewStatus: ReviewStatus;
 }
 
@@ -156,10 +170,12 @@ export interface ReadingEvent {
 export interface ReadingPlan {
   id: string;
   title: string;
-  durationDays: 7 | 30 | 100;
+  titleEn?: string;
+  durationDays: 7 | 9 | 30 | 100;
   dailyTarget: number;
   workId: string;
   description: string;
+  descriptionEn?: string;
 }
 
 export interface PlanItem {
@@ -181,6 +197,7 @@ export interface PlanProgress {
 }
 
 export interface AppSettings {
+  appLanguage: AppLanguage;
   fontScaleLevel: FontScaleLevel;
   fontStyle: 'sans' | 'serif';
   themeMode: ThemeMode;

@@ -1,5 +1,6 @@
 import type {
   Annotation,
+  AppLanguage,
   AppSettings,
   Bookmark,
   ContentPack,
@@ -45,6 +46,7 @@ export interface AppRepository {
 
   // Scripture & Rights (Public DB)
   getWorks(): Promise<Work[]>;
+  getAllEditions(): Promise<Edition[]>;
   getWorkById(workId: string): Promise<Work | undefined>;
   getEditionsForWork(workId: string): Promise<Edition[]>;
   getSectionsForWork(workId: string): Promise<Section[]>;
@@ -64,7 +66,7 @@ export interface AppRepository {
   getApprovedRelatedLinks(segmentId: string): Promise<RelatedLink[]>;
 
   // Search
-  searchSegments(query: string, editionId?: string): Promise<SearchResultItem[]>;
+  searchSegments(query: string, editionId?: string, langFilter?: AppLanguage): Promise<SearchResultItem[]>;
 
   // Bookmarks (Private DB)
   getBookmarks(profileId: string): Promise<Bookmark[]>;

@@ -7,6 +7,7 @@ import {
 } from '../domain/readingRules';
 import type {
   Annotation,
+  AppLanguage,
   AppSettings,
   Bookmark,
   ContentPack,
@@ -169,8 +170,43 @@ export class SqliteRepository implements AppRepository {
           key TEXT PRIMARY KEY NOT NULL,
           value TEXT NOT NULL
         );
-        PRAGMA user_version = 1;
+        PRAGMA user_version = 2;
       `);
+
+      const ensureCols = async (table: string, cols: [string, string][]) => {
+        const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+        const existing = new Set(info.map((c) => c.name));
+        for (const [colName, colType] of cols) {
+          if (!existing.has(colName)) {
+            await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${colName} ${colType}`);
+          }
+        }
+      };
+      await ensureCols('works', [
+        ['title_en', 'TEXT'],
+        ['subtitle_en', 'TEXT'],
+        ['description_en', 'TEXT'],
+      ]);
+      await ensureCols('editions', [
+        ['label_en', 'TEXT'],
+        ['translator_en', 'TEXT'],
+      ]);
+      await ensureCols('sections', [['title_en', 'TEXT']]);
+      await ensureCols('segments', [['source_ref_en', 'TEXT']]);
+      await ensureCols('annotations', [
+        ['title_en', 'TEXT'],
+        ['body_en', 'TEXT'],
+        ['source_en', 'TEXT'],
+      ]);
+      await ensureCols('related_links', [
+        ['target_title_en', 'TEXT'],
+        ['target_ref_en', 'TEXT'],
+        ['evidence_en', 'TEXT'],
+      ]);
+      await ensureCols('plans', [
+        ['title_en', 'TEXT'],
+        ['description_en', 'TEXT'],
+      ]);
     });
   }
 
@@ -229,8 +265,43 @@ export class SqliteRepository implements AppRepository {
           key TEXT PRIMARY KEY NOT NULL,
           value_json TEXT NOT NULL
         );
-        PRAGMA user_version = 1;
+        PRAGMA user_version = 2;
       `);
+
+      const ensureCols = async (table: string, cols: [string, string][]) => {
+        const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+        const existing = new Set(info.map((c) => c.name));
+        for (const [colName, colType] of cols) {
+          if (!existing.has(colName)) {
+            await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${colName} ${colType}`);
+          }
+        }
+      };
+      await ensureCols('works', [
+        ['title_en', 'TEXT'],
+        ['subtitle_en', 'TEXT'],
+        ['description_en', 'TEXT'],
+      ]);
+      await ensureCols('editions', [
+        ['label_en', 'TEXT'],
+        ['translator_en', 'TEXT'],
+      ]);
+      await ensureCols('sections', [['title_en', 'TEXT']]);
+      await ensureCols('segments', [['source_ref_en', 'TEXT']]);
+      await ensureCols('annotations', [
+        ['title_en', 'TEXT'],
+        ['body_en', 'TEXT'],
+        ['source_en', 'TEXT'],
+      ]);
+      await ensureCols('related_links', [
+        ['target_title_en', 'TEXT'],
+        ['target_ref_en', 'TEXT'],
+        ['evidence_en', 'TEXT'],
+      ]);
+      await ensureCols('plans', [
+        ['title_en', 'TEXT'],
+        ['description_en', 'TEXT'],
+      ]);
     });
   }
 
@@ -266,14 +337,17 @@ export class SqliteRepository implements AppRepository {
 
       for (const w of pack.works) {
         await pub.runAsync(
-          'INSERT INTO works (id, title, subtitle, tradition, type, total_segments, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO works (id, title, title_en, subtitle, subtitle_en, tradition, type, total_segments, description, description_en) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           w.id,
           normalizeNfc(w.title),
+          w.titleEn ? normalizeNfc(w.titleEn) : null,
           w.subtitle ?? null,
+          w.subtitleEn ?? null,
           w.tradition,
           w.type,
           w.totalSegments,
-          w.description ?? null
+          w.description ?? null,
+          w.descriptionEn ?? null
         );
       }
 
@@ -307,12 +381,14 @@ export class SqliteRepository implements AppRepository {
       for (const ed of pack.editions) {
         if (!approvedEditionIds.has(ed.id)) continue;
         await pub.runAsync(
-          'INSERT INTO editions (id, work_id, lang, label, translator, license_id, source_revision, is_original) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO editions (id, work_id, lang, label, label_en, translator, translator_en, license_id, source_revision, is_original) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           ed.id,
           ed.workId,
           ed.lang,
           ed.label,
+          ed.labelEn ?? null,
           ed.translator,
+          ed.translatorEn ?? null,
           ed.licenseId,
           ed.sourceRevision,
           ed.isOriginal ? 1 : 0
@@ -321,24 +397,26 @@ export class SqliteRepository implements AppRepository {
 
       for (const sec of pack.sections) {
         await pub.runAsync(
-          'INSERT INTO sections (id, work_id, parent_id, ordinal, title, source_ref) VALUES (?, ?, ?, ?, ?, ?)',
+          'INSERT INTO sections (id, work_id, parent_id, ordinal, title, title_en, source_ref) VALUES (?, ?, ?, ?, ?, ?, ?)',
           sec.id,
           sec.workId,
           sec.parentId,
           sec.ordinal,
           normalizeNfc(sec.title),
+          sec.titleEn ? normalizeNfc(sec.titleEn) : null,
           sec.sourceRef
         );
       }
 
       for (const seg of pack.segments) {
         await pub.runAsync(
-          'INSERT INTO segments (id, work_id, section_id, ordinal, source_ref, topics_json) VALUES (?, ?, ?, ?, ?, ?)',
+          'INSERT INTO segments (id, work_id, section_id, ordinal, source_ref, source_ref_en, topics_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
           seg.id,
           seg.workId,
           seg.sectionId,
           seg.ordinal,
           normalizeNfc(seg.sourceRef),
+          seg.sourceRefEn ? normalizeNfc(seg.sourceRefEn) : null,
           JSON.stringify(seg.topics)
         );
       }
@@ -366,14 +444,17 @@ export class SqliteRepository implements AppRepository {
 
       for (const ann of pack.annotations) {
         await pub.runAsync(
-          'INSERT INTO annotations (id, segment_id, edition_id, kind, title, body, source, uncertainty_note, review_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO annotations (id, segment_id, edition_id, kind, title, title_en, body, body_en, source, source_en, uncertainty_note, review_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           ann.id,
           ann.segmentId,
           ann.editionId,
           ann.kind,
           ann.title ?? null,
+          ann.titleEn ?? null,
           normalizeNfc(ann.body),
+          ann.bodyEn ? normalizeNfc(ann.bodyEn) : null,
           ann.source,
+          ann.sourceEn ?? null,
           ann.uncertaintyNote ?? null,
           ann.reviewStatus
         );
@@ -381,27 +462,32 @@ export class SqliteRepository implements AppRepository {
 
       for (const link of pack.relatedLinks) {
         await pub.runAsync(
-          'INSERT INTO related_links (id, from_id, to_id, type, target_title, target_ref, evidence, review_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO related_links (id, from_id, to_id, type, target_title, target_title_en, target_ref, target_ref_en, evidence, evidence_en, review_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           link.id,
           link.fromId,
           link.toId,
           link.type,
           link.targetTitle,
+          link.targetTitleEn ?? null,
           link.targetRef,
+          link.targetRefEn ?? null,
           link.evidence,
+          link.evidenceEn ?? null,
           link.reviewStatus
         );
       }
 
       for (const plan of pack.plans) {
         await pub.runAsync(
-          'INSERT INTO plans (id, title, duration_days, daily_target, work_id, description) VALUES (?, ?, ?, ?, ?, ?)',
+          'INSERT INTO plans (id, title, title_en, duration_days, daily_target, work_id, description, description_en) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           plan.id,
           plan.title,
+          plan.titleEn ?? null,
           plan.durationDays,
           plan.dailyTarget,
           plan.workId,
-          plan.description
+          plan.description,
+          plan.descriptionEn ?? null
         );
       }
 
@@ -456,11 +542,31 @@ export class SqliteRepository implements AppRepository {
     return rows.map((r) => ({
       id: String(r.id),
       title: String(r.title),
+      titleEn: r.title_en ? String(r.title_en) : undefined,
       subtitle: r.subtitle ? String(r.subtitle) : undefined,
+      subtitleEn: r.subtitle_en ? String(r.subtitle_en) : undefined,
       tradition: r.tradition as Work['tradition'],
       type: r.type as Work['type'],
       totalSegments: Number(r.total_segments),
       description: r.description ? String(r.description) : undefined,
+      descriptionEn: r.description_en ? String(r.description_en) : undefined,
+    }));
+  }
+
+  async getAllEditions(): Promise<Edition[]> {
+    const { pub } = this.ensureDbs();
+    const rows = await pub.getAllAsync<Record<string, unknown>>('SELECT * FROM editions');
+    return rows.map((r) => ({
+      id: String(r.id),
+      workId: String(r.work_id),
+      lang: r.lang as Edition['lang'],
+      label: String(r.label),
+      labelEn: r.label_en ? String(r.label_en) : undefined,
+      translator: String(r.translator),
+      translatorEn: r.translator_en ? String(r.translator_en) : undefined,
+      licenseId: String(r.license_id),
+      sourceRevision: String(r.source_revision),
+      isOriginal: Number(r.is_original) === 1,
     }));
   }
 
@@ -477,7 +583,9 @@ export class SqliteRepository implements AppRepository {
       workId: String(r.work_id),
       lang: r.lang as Edition['lang'],
       label: String(r.label),
+      labelEn: r.label_en ? String(r.label_en) : undefined,
       translator: String(r.translator),
+      translatorEn: r.translator_en ? String(r.translator_en) : undefined,
       licenseId: String(r.license_id),
       sourceRevision: String(r.source_revision),
       isOriginal: Number(r.is_original) === 1,
@@ -496,6 +604,7 @@ export class SqliteRepository implements AppRepository {
       parentId: r.parent_id ? String(r.parent_id) : null,
       ordinal: Number(r.ordinal),
       title: String(r.title),
+      titleEn: r.title_en ? String(r.title_en) : undefined,
       sourceRef: String(r.source_ref),
     }));
   }
@@ -528,6 +637,7 @@ export class SqliteRepository implements AppRepository {
       sectionId: String(r.section_id),
       ordinal: Number(r.ordinal),
       sourceRef: String(r.source_ref),
+      sourceRefEn: r.source_ref_en ? String(r.source_ref_en) : undefined,
       topics: JSON.parse(String(r.topics_json)) as string[],
     };
   }
@@ -616,8 +726,11 @@ export class SqliteRepository implements AppRepository {
       editionId: String(r.edition_id),
       kind: r.kind as Annotation['kind'],
       title: r.title ? String(r.title) : undefined,
+      titleEn: r.title_en ? String(r.title_en) : undefined,
       body: String(r.body),
+      bodyEn: r.body_en ? String(r.body_en) : undefined,
       source: String(r.source),
+      sourceEn: r.source_en ? String(r.source_en) : undefined,
       uncertaintyNote: r.uncertainty_note ? String(r.uncertainty_note) : undefined,
       reviewStatus: 'approved',
     }));
@@ -635,13 +748,16 @@ export class SqliteRepository implements AppRepository {
       toId: String(r.to_id),
       type: r.type as RelatedLink['type'],
       targetTitle: String(r.target_title),
+      targetTitleEn: r.target_title_en ? String(r.target_title_en) : undefined,
       targetRef: String(r.target_ref),
+      targetRefEn: r.target_ref_en ? String(r.target_ref_en) : undefined,
       evidence: String(r.evidence),
+      evidenceEn: r.evidence_en ? String(r.evidence_en) : undefined,
       reviewStatus: 'approved',
     }));
   }
 
-  async searchSegments(query: string, editionId?: string): Promise<SearchResultItem[]> {
+  async searchSegments(query: string, editionId?: string, langFilter?: AppLanguage): Promise<SearchResultItem[]> {
     const q = normalizeSearchQuery(query);
     if (!q) return [];
     const works = await this.getWorks();
@@ -651,18 +767,22 @@ export class SqliteRepository implements AppRepository {
       const editions = await this.getEditionsForWork(work.id);
       const targetEd = editionId
         ? editions.find((e) => e.id === editionId)
-        : editions.find((e) => !e.isOriginal) ?? editions[0];
+        : langFilter
+          ? editions.find((e) => e.lang === langFilter)
+          : editions.find((e) => !e.isOriginal) ?? editions[0];
       if (!targetEd) continue;
 
       const segments = await this.getSegmentsForWork(work.id);
       for (const seg of segments) {
         const st = await this.getSegmentText(seg.id, targetEd.id);
         if (!st) continue;
+        const refStr = langFilter === 'en' ? (seg.sourceRefEn ?? seg.sourceRef) : seg.sourceRef;
+        const titleStr = langFilter === 'en' ? (work.titleEn ?? work.title) : work.title;
         if (normalizeSearchQuery(st.text).includes(q)) {
           results.push({ segment: seg, work, edition: targetEd, segmentText: st, matchedField: 'text' });
-        } else if (normalizeSearchQuery(seg.sourceRef).includes(q)) {
+        } else if (normalizeSearchQuery(refStr).includes(q)) {
           results.push({ segment: seg, work, edition: targetEd, segmentText: st, matchedField: 'source_ref' });
-        } else if (normalizeSearchQuery(work.title).includes(q)) {
+        } else if (normalizeSearchQuery(titleStr).includes(q)) {
           results.push({ segment: seg, work, edition: targetEd, segmentText: st, matchedField: 'work_title' });
         }
       }
@@ -905,10 +1025,12 @@ export class SqliteRepository implements AppRepository {
     return rows.map((r) => ({
       id: String(r.id),
       title: String(r.title),
+      titleEn: r.title_en ? String(r.title_en) : undefined,
       durationDays: Number(r.duration_days) as ReadingPlan['durationDays'],
       dailyTarget: Number(r.daily_target),
       workId: String(r.work_id),
       description: String(r.description),
+      descriptionEn: r.description_en ? String(r.description_en) : undefined,
     }));
   }
 

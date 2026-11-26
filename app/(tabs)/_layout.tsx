@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { useApp } from '../../src/features/app/AppProvider';
 
 export default function TabLayout() {
-  const { palette } = useApp();
+  const { palette, strings } = useApp();
   const isDark = palette.mode === 'dark';
 
   return (
@@ -30,8 +30,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: '홈',
-          tabBarAccessibilityLabel: '홈 피드 탭',
+          title: strings.tabs.home,
+          tabBarAccessibilityLabel: strings.tabs.home,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
@@ -44,8 +44,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="library"
         options={{
-          title: '경전',
-          tabBarAccessibilityLabel: '경전 목록 및 검색 탭',
+          title: strings.tabs.library,
+          tabBarAccessibilityLabel: strings.tabs.library,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'library' : 'library-outline'}
@@ -58,8 +58,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="practice"
         options={{
-          title: '수행',
-          tabBarAccessibilityLabel: '수행 계획 및 명상 탭',
+          title: strings.tabs.practice,
+          tabBarAccessibilityLabel: strings.tabs.practice,
           tabBarIcon: ({ focused }) => (
             <View
               style={[
@@ -82,8 +82,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="saved"
         options={{
-          title: '저장',
-          tabBarAccessibilityLabel: '저장한 구절 및 일지 탭',
+          title: strings.tabs.saved,
+          tabBarAccessibilityLabel: strings.tabs.saved,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'bookmark' : 'bookmark-outline'}
@@ -96,8 +96,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="my"
         options={{
-          title: 'My',
-          tabBarAccessibilityLabel: '설정 및 내 정보 탭',
+          title: strings.tabs.my,
+          tabBarAccessibilityLabel: strings.tabs.my,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'person' : 'person-outline'}

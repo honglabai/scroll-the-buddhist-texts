@@ -45,8 +45,11 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function fetchWikisourcePage(title: string): Promise<{ revid: number; wikitext: string }> {
-  const url = `https://ko.wikisource.org/w/api.php?action=query&titles=${encodeURIComponent(
+async function fetchWikisourcePage(
+  title: string,
+  host: 'ko.wikisource.org' | 'en.wikisource.org' = 'ko.wikisource.org'
+): Promise<{ revid: number; wikitext: string }> {
+  const url = `https://${host}/w/api.php?action=query&titles=${encodeURIComponent(
     title
   )}&prop=revisions&rvprop=ids|content&rvslots=main&format=json`;
   const data = await fetchJson<{
@@ -54,7 +57,7 @@ async function fetchWikisourcePage(title: string): Promise<{ revid: number; wiki
   }>(url);
   const page = Object.values(data.query.pages)[0];
   const rev = page?.revisions?.[0];
-  if (!rev) throw new Error(`Missing Wikisource page: ${title}`);
+  if (!rev) throw new Error(`Missing Wikisource page (${host}): ${title}`);
   return { revid: rev.revid, wikitext: rev.slots.main['*'] };
 }
 
@@ -135,6 +138,63 @@ function parseHeartSutra(wikitext: string): { title: string; hanja: string; ko: 
     });
   }
   return units;
+}
+
+function parseEnDiamondSutra(wikitext: string): { title: string; en: string }[] {
+  const parts = wikitext.split(/^=====\s*([^=]+?)\s*=====$/gm);
+  const chapters: { title: string; en: string }[] = [];
+  for (let i = 1; i < parts.length; i += 2) {
+    const heading = parts[i].trim();
+    if (!/^Section\s+\d+:/i.test(heading)) continue;
+    let bodyRaw = (parts[i + 1] ?? '').split('{{translation licence')[0] ?? '';
+    bodyRaw = bodyRaw.replace(/^:\s*/gm, '');
+    const en = stripWikiMarkup(bodyRaw);
+    if (!en) continue;
+    chapters.push({
+      title: heading.replace(/^Section\s+(\d+):\s*/i, 'Chapter $1 · '),
+      en,
+    });
+  }
+  return chapters;
+}
+
+function parseEnHeartSutra(wikitext: string): string[] {
+  const bodyRaw = (wikitext.split(/\}\}\n\s*\nWhen /i)[1] ? 'When ' + wikitext.split(/\}\}\n\s*\nWhen /i)[1] : wikitext)
+    .split('{{translation licence')[0]
+    .replace(/^:\s*/gm, '');
+  const clean = stripWikiMarkup(bodyRaw);
+
+  const p2End = clean.indexOf('“Śāriputra, form is not different');
+  const p3End = clean.indexOf('Śāriputra, all dharmas are empty');
+  const p4End = clean.indexOf('This is because in emptiness');
+  const p5End = clean.indexOf('“Because there is no attainment');
+  const p6End = clean.indexOf('Therefore, know that Prajñāpāramitā');
+  const p7End = clean.indexOf('The mantra is spoken thusly:');
+  const p8End = clean.indexOf('gate gate pāragate');
+
+  if (
+    p2End < 0 ||
+    p3End <= p2End ||
+    p4End <= p3End ||
+    p5End <= p4End ||
+    p6End <= p5End ||
+    p7End <= p6End ||
+    p8End <= p7End
+  ) {
+    throw new Error('Failed to align English Heart Sutra sections cleanly from Wikisource');
+  }
+
+  return [
+    'Mahāprajñāpāramitā Hṛdaya Sūtra (Heart Sūtra)',
+    clean.slice(0, p2End).trim(),
+    clean.slice(p2End, p3End).trim(),
+    clean.slice(p3End, p4End).trim(),
+    clean.slice(p4End, p5End).trim(),
+    clean.slice(p5End, p6End).trim(),
+    clean.slice(p6End, p7End).trim(),
+    clean.slice(p7End, p8End).trim(),
+    clean.slice(p8End).trim(),
+  ];
 }
 
 function parseCheonsugyeong(wikitext: string): { title: string; hanja: string; ko: string }[] {
@@ -224,6 +284,35 @@ const DHP_VAGGA_TITLES_KO: Record<string, string> = {
   'dhp383-423': '제26 바라문품 (Brāhmaṇavagga)',
 };
 
+const DHP_VAGGA_TITLES_EN: Record<string, string> = {
+  'dhp1-20': 'Ch. 1 Twin Verses (Yamakavagga)',
+  'dhp21-32': 'Ch. 2 Heedfulness (Appamādavagga)',
+  'dhp33-43': 'Ch. 3 The Mind (Cittavagga)',
+  'dhp44-59': 'Ch. 4 Flowers (Pupphavagga)',
+  'dhp60-75': 'Ch. 5 Fools (Bālavagga)',
+  'dhp76-89': 'Ch. 6 The Wise (Paṇḍitavagga)',
+  'dhp90-99': 'Ch. 7 The Perfected Ones (Arahantavagga)',
+  'dhp100-115': 'Ch. 8 Thousands (Sahassavagga)',
+  'dhp116-128': 'Ch. 9 Wickedness (Pāpavagga)',
+  'dhp129-145': 'Ch. 10 The Rod (Daṇḍavagga)',
+  'dhp146-156': 'Ch. 11 Old Age (Jarāvagga)',
+  'dhp157-166': 'Ch. 12 Self (Attavagga)',
+  'dhp167-178': 'Ch. 13 The World (Lokavagga)',
+  'dhp179-196': 'Ch. 14 The Buddha (Buddhavagga)',
+  'dhp197-208': 'Ch. 15 Happiness (Sukhavagga)',
+  'dhp209-220': 'Ch. 16 Affection (Piyavagga)',
+  'dhp221-234': 'Ch. 17 Anger (Kodhavagga)',
+  'dhp235-255': 'Ch. 18 Impurities (Malavagga)',
+  'dhp256-272': 'Ch. 19 The Just (Dhammaṭṭhavagga)',
+  'dhp273-289': 'Ch. 20 The Path (Maggavagga)',
+  'dhp290-305': 'Ch. 21 Miscellaneous (Pakiṇṇakavagga)',
+  'dhp306-319': 'Ch. 22 Hell (Nirayavagga)',
+  'dhp320-333': 'Ch. 23 The Elephant (Nāgavagga)',
+  'dhp334-359': 'Ch. 24 Craving (Taṇhāvagga)',
+  'dhp360-382': 'Ch. 25 Monastics (Bhikkhuvagga)',
+  'dhp383-423': 'Ch. 26 Brahmins (Brāhmaṇavagga)',
+};
+
 async function main() {
   const works: Work[] = [];
   const editions: Edition[] = [];
@@ -235,19 +324,32 @@ async function main() {
   const relatedLinks: RelatedLink[] = [];
 
   // ---------------------------------------------------------------------------
-  // 1. 금강반야바라밀경 (금강경 32장 전체 - 한국어 PD-자작 + 한문 PD-old-100)
+  // 1. 금강반야바라밀경 (금강경 32장 전체 - 한국어 PD-자작 + 영어 CC0 + 한문 PD-old-100)
   // ---------------------------------------------------------------------------
-  console.log('Fetching Diamond Sutra (금강경) from ko.wikisource.org...');
-  const diamondPage = await fetchWikisourcePage('금강반야바라밀경');
+  console.log('Fetching Diamond Sutra (금강경) from ko.wikisource.org & en.wikisource.org...');
+  const [diamondPage, enDiamondPage] = await Promise.all([
+    fetchWikisourcePage('금강반야바라밀경', 'ko.wikisource.org'),
+    fetchWikisourcePage('Translation:Vajracchedikā_Prajñāpāramitā_Sūtra', 'en.wikisource.org'),
+  ]);
   const diamondChapters = parseDiamondSutra(diamondPage.wikitext);
+  const enDiamondChapters = parseEnDiamondSutra(enDiamondPage.wikitext);
+  if (enDiamondChapters.length !== diamondChapters.length) {
+    throw new Error(
+      `Diamond Sutra chapter count mismatch: ko=${diamondChapters.length}, en=${enDiamondChapters.length}`
+    );
+  }
   works.push({
     id: 'work-diamond',
     title: '금강경 (금강반야바라밀경)',
+    titleEn: 'Diamond Sūtra (Vajracchedikā Prajñāpāramitā)',
     subtitle: '대승불교 · 32분 완역 (한국어 · 한문 원문)',
+    subtitleEn: 'Mahāyāna · 32 Chapters Complete (English · Classical Chinese)',
     tradition: 'mahayana',
     type: 'sutta',
     totalSegments: diamondChapters.length,
     description: '구마라습 한역 본문을 바탕으로 한국어 위키문헌에 퍼블릭 도메인(PD-자작)으로 기증된 금강경 32장 전문입니다.',
+    descriptionEn:
+      'Complete 32-chapter English translation of Kumārajīva’s Diamond Sūtra (T235), released to the Public Domain (CC0) on English Wikisource.',
   });
   editions.push(
     {
@@ -255,9 +357,23 @@ async function main() {
       workId: 'work-diamond',
       lang: 'ko',
       label: '한국어 완역 (위키문헌 PD-자작)',
+      labelEn: 'Korean Translation (Wikisource PD)',
       translator: 'jjw (한국어 위키문헌 기증)',
+      translatorEn: 'jjw (Korean Wikisource Public Domain)',
       licenseId: 'PD-self',
       sourceRevision: `ws-rev-${diamondPage.revid}`,
+      isOriginal: false,
+    },
+    {
+      id: 'ed-diamond-en-ws',
+      workId: 'work-diamond',
+      lang: 'en',
+      label: '영어 번역 (위키문헌 CC0)',
+      labelEn: 'English Translation (Wikisource CC0)',
+      translator: '영어 위키문헌 기여자 (CC0)',
+      translatorEn: 'English Wikisource Contributors (CC0)',
+      licenseId: 'CC0-1.0',
+      sourceRevision: `ws-rev-${enDiamondPage.revid}`,
       isOriginal: false,
     },
     {
@@ -265,7 +381,9 @@ async function main() {
       workId: 'work-diamond',
       lang: 'zh',
       label: '한문 원문 (구마라습 역)',
+      labelEn: 'Classical Chinese (Kumārajīva)',
       translator: '구마라습 (한역)',
+      translatorEn: 'Kumārajīva (Classical Chinese)',
       licenseId: 'PD-old-100',
       sourceRevision: `ws-rev-${diamondPage.revid}`,
       isOriginal: true,
@@ -280,6 +398,24 @@ async function main() {
       sourceRevision: `rev-${diamondPage.revid}`,
       license: 'PD-self (Public Domain)',
       permissionEvidence: '한국어 위키문헌 {{번역 저작권|원문={{PD-old-100}}|번역={{PD-자작}}}} 확인',
+      allowRedistribution: true,
+      allowCommercial: true,
+      allowAdaptation: true,
+      allowShare: true,
+      allowTTS: true,
+      allowAIProcessing: true,
+      reviewedAt: '2026-11-26',
+      reviewer: 'Content-Policy-Check',
+      status: 'approved',
+    },
+    {
+      workId: 'work-diamond',
+      editionId: 'ed-diamond-en-ws',
+      translator: 'English Wikisource Contributors',
+      sourceUrl: 'https://en.wikisource.org/wiki/Translation:Vajracchedik%C4%81_Praj%C3%B1%C4%81p%C4%81ramit%C4%81_S%C5%ABtra',
+      sourceRevision: `rev-${enDiamondPage.revid}`,
+      license: 'CC0-1.0 (Public Domain)',
+      permissionEvidence: 'English Wikisource {{translation licence|original={{pd-old}}|translation={{CC-Zero}}}} verified',
       allowRedistribution: true,
       allowCommercial: true,
       allowAdaptation: true,
@@ -311,6 +447,7 @@ async function main() {
   );
 
   diamondChapters.forEach((ch, idx) => {
+    const enCh = enDiamondChapters[idx];
     const secId = `sec-diamond-${idx + 1}`;
     const segId = `diamond-${String(idx + 1).padStart(2, '0')}`;
     sections.push({
@@ -319,6 +456,7 @@ async function main() {
       parentId: null,
       ordinal: idx + 1,
       title: ch.title,
+      titleEn: enCh.title,
       sourceRef: `금강경 제${idx + 1}분`,
     });
     segments.push({
@@ -327,13 +465,20 @@ async function main() {
       sectionId: secId,
       ordinal: idx + 1,
       sourceRef: ch.title,
-      topics: inferTopics(ch.ko),
+      sourceRefEn: enCh.title,
+      topics: inferTopics(`${ch.ko}\n${enCh.en}`),
     });
     segmentTexts.push(
       {
         segmentId: segId,
         editionId: 'ed-diamond-ko-ws',
         text: ch.ko,
+        reviewStatus: 'approved',
+      },
+      {
+        segmentId: segId,
+        editionId: 'ed-diamond-en-ws',
+        text: enCh.en,
         reviewStatus: 'approved',
       },
       {
@@ -346,19 +491,32 @@ async function main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 2. 반야바라밀다심경 (반야심경 - 한국어 PD-자작 + 한문 PD-old-100)
+  // 2. 반야바라밀다심경 (반야심경 - 한국어 PD-자작 + 영어 PD-author-release + 한문 PD-old-100)
   // ---------------------------------------------------------------------------
-  console.log('Fetching Heart Sutra (반야심경) from ko.wikisource.org...');
-  const heartPage = await fetchWikisourcePage('번역:반야바라밀다심경');
+  console.log('Fetching Heart Sutra (반야심경) from ko.wikisource.org & en.wikisource.org...');
+  const [heartPage, enHeartPage] = await Promise.all([
+    fetchWikisourcePage('번역:반야바라밀다심경', 'ko.wikisource.org'),
+    fetchWikisourcePage('Translation:Shorter_Prajñāpāramitā_Hṛdaya_Sūtra', 'en.wikisource.org'),
+  ]);
   const heartUnits = parseHeartSutra(heartPage.wikitext);
+  const enHeartUnits = parseEnHeartSutra(enHeartPage.wikitext);
+  if (enHeartUnits.length !== heartUnits.length) {
+    throw new Error(
+      `Heart Sutra unit count mismatch: ko=${heartUnits.length}, en=${enHeartUnits.length}`
+    );
+  }
   works.push({
     id: 'work-heart',
     title: '반야심경 (반야바라밀다심경)',
+    titleEn: 'Heart Sūtra (Prajñāpāramitā Hṛdaya)',
     subtitle: '대승불교 · 전문 (한국어 · 한문 원문)',
+    subtitleEn: 'Mahāyāna · Complete Text (English · Classical Chinese)',
     tradition: 'mahayana',
     type: 'chant',
     totalSegments: heartUnits.length,
     description: '현장 법사 한역 본문을 바탕으로 한국어 위키문헌에 퍼블릭 도메인(PD-자작)으로 공개된 반야심경 전문입니다.',
+    descriptionEn:
+      'Complete English translation of Master Xuanzang’s Heart Sūtra (T251), released to the Public Domain (PD-author-release) on English Wikisource.',
   });
   editions.push(
     {
@@ -366,9 +524,23 @@ async function main() {
       workId: 'work-heart',
       lang: 'ko',
       label: '한국어 번역 (위키문헌 PD-자작)',
+      labelEn: 'Korean Translation (Wikisource PD)',
       translator: '한국어 위키문헌 기여자 (PD-자작)',
+      translatorEn: 'Korean Wikisource Contributors (PD)',
       licenseId: 'PD-self',
       sourceRevision: `ws-rev-${heartPage.revid}`,
+      isOriginal: false,
+    },
+    {
+      id: 'ed-heart-en-ws',
+      workId: 'work-heart',
+      lang: 'en',
+      label: '영어 번역 (위키문헌 PD)',
+      labelEn: 'English Translation (Wikisource PD)',
+      translator: '영어 위키문헌 기여자 (PD)',
+      translatorEn: 'English Wikisource Contributors (PD-author-release)',
+      licenseId: 'PD-author-release',
+      sourceRevision: `ws-rev-${enHeartPage.revid}`,
       isOriginal: false,
     },
     {
@@ -376,7 +548,9 @@ async function main() {
       workId: 'work-heart',
       lang: 'zh',
       label: '한문 원문 (현장 역)',
+      labelEn: 'Classical Chinese (Xuanzang)',
       translator: '현장 (한역)',
+      translatorEn: 'Xuanzang (Classical Chinese)',
       licenseId: 'PD-old-100',
       sourceRevision: `ws-rev-${heartPage.revid}`,
       isOriginal: true,
@@ -391,6 +565,24 @@ async function main() {
       sourceRevision: `rev-${heartPage.revid}`,
       license: 'PD-self (Public Domain)',
       permissionEvidence: '한국어 위키문헌 {{번역 저작권|원문={{PD-old-100}}|번역={{PD-자작}}}} 확인',
+      allowRedistribution: true,
+      allowCommercial: true,
+      allowAdaptation: true,
+      allowShare: true,
+      allowTTS: true,
+      allowAIProcessing: true,
+      reviewedAt: '2026-11-26',
+      reviewer: 'Content-Policy-Check',
+      status: 'approved',
+    },
+    {
+      workId: 'work-heart',
+      editionId: 'ed-heart-en-ws',
+      translator: 'English Wikisource Contributors',
+      sourceUrl: 'https://en.wikisource.org/wiki/Translation:Shorter_Praj%C3%B1%C4%81p%C4%81ramit%C4%81_H%E1%B9%9Bdaya_S%C5%ABtra',
+      sourceRevision: `rev-${enHeartPage.revid}`,
+      license: 'PD-author-release (Public Domain)',
+      permissionEvidence: 'English Wikisource {{translation licence|original={{pd-old}}|translation={{PD-author-release}}}} verified',
       allowRedistribution: true,
       allowCommercial: true,
       allowAdaptation: true,
@@ -426,9 +618,11 @@ async function main() {
     parentId: null,
     ordinal: 1,
     title: '반야바라밀다심경 본문',
+    titleEn: 'Heart Sūtra Main Text',
     sourceRef: 'T0251',
   });
   heartUnits.forEach((u, idx) => {
+    const enText = enHeartUnits[idx];
     const segId = `heart-${String(idx + 1).padStart(2, '0')}`;
     segments.push({
       id: segId,
@@ -436,10 +630,12 @@ async function main() {
       sectionId: 'sec-heart-1',
       ordinal: idx + 1,
       sourceRef: `반야심경 ${u.title}`,
-      topics: inferTopics(u.ko),
+      sourceRefEn: `Heart Sūtra · Section ${idx + 1}`,
+      topics: inferTopics(`${u.ko}\n${enText}`),
     });
     segmentTexts.push(
       { segmentId: segId, editionId: 'ed-heart-ko-ws', text: u.ko, reviewStatus: 'approved' },
+      { segmentId: segId, editionId: 'ed-heart-en-ws', text: enText, reviewStatus: 'approved' },
       { segmentId: segId, editionId: 'ed-heart-zh-ws', text: u.hanja, reviewStatus: 'approved' }
     );
   });
@@ -465,7 +661,9 @@ async function main() {
       workId: 'work-cheonsu',
       lang: 'ko',
       label: '한국어 독송본 (위키문헌 CC-BY-SA-4.0)',
+      labelEn: 'Korean Chanting Edition (Wikisource CC-BY-SA-4.0)',
       translator: '한국어 위키문헌 기여자',
+      translatorEn: 'Korean Wikisource Contributors',
       licenseId: 'CC-BY-SA-4.0',
       sourceRevision: `ws-rev-${cheonsuPage.revid}`,
       isOriginal: false,
@@ -475,7 +673,9 @@ async function main() {
       workId: 'work-cheonsu',
       lang: 'zh',
       label: '한문 본문 (PD-old-100)',
+      labelEn: 'Classical Chinese Text (PD-old-100)',
       translator: '전통 독송 한문본',
+      translatorEn: 'Traditional Chanting Chinese Text',
       licenseId: 'PD-old-100',
       sourceRevision: `ws-rev-${cheonsuPage.revid}`,
       isOriginal: true,
@@ -580,6 +780,7 @@ async function main() {
       parentId: null,
       ordinal: dhpSecOrdinal,
       title: DHP_VAGGA_TITLES_KO[fileBase] ?? fileBase,
+      titleEn: DHP_VAGGA_TITLES_EN[fileBase] ?? fileBase,
       sourceRef: fileBase.toUpperCase(),
     });
 
@@ -605,19 +806,25 @@ async function main() {
   works.push({
     id: 'work-dhp',
     title: '법구경 (Dhammapada · 423게송)',
+    titleEn: 'Dhammapada (423 Verses)',
     subtitle: '초기불교 · 26품 완역 (팔리어 원문 · Bhikkhu Sujato 영어 CC0)',
+    subtitleEn: 'Early Buddhism · 26 Chapters Complete (English · Pāli CC0)',
     tradition: 'early_buddhism',
     type: 'verse',
     totalSegments: dhpNumbers.length,
     description: 'SuttaCentral Bilara CC0 판본(Mahāsaṅgīti 팔리어 원문 및 Bhikkhu Sujato 영어 번역)으로 수록한 법구경 전체 423게송입니다.',
+    descriptionEn:
+      'Complete 423 verses of the Dhammapada translated by Bhikkhu Sujato alongside the Mahāsaṅgīti Pāli root text (SuttaCentral CC0).',
   });
   editions.push(
     {
       id: 'ed-dhp-en-sujato',
       workId: 'work-dhp',
       lang: 'en',
-      label: 'English (Bhikkhu Sujato · CC0)',
+      label: '영어 번역 (Bhikkhu Sujato · CC0)',
+      labelEn: 'English (Bhikkhu Sujato · CC0)',
       translator: 'Bhikkhu Sujato',
+      translatorEn: 'Bhikkhu Sujato',
       licenseId: 'CC0-1.0',
       sourceRevision: BILARA_COMMIT.slice(0, 10),
       isOriginal: false,
@@ -626,8 +833,10 @@ async function main() {
       id: 'ed-dhp-pi-ms',
       workId: 'work-dhp',
       lang: 'pi',
-      label: 'Pāli (Mahāsaṅgīti · CC0)',
+      label: '팔리어 원문 (Mahāsaṅgīti · CC0)',
+      labelEn: 'Original Pāli (Mahāsaṅgīti · CC0)',
       translator: 'Mahāsaṅgīti Tipiṭaka',
+      translatorEn: 'Mahāsaṅgīti Tipiṭaka',
       licenseId: 'CC0-1.0',
       sourceRevision: BILARA_COMMIT.slice(0, 10),
       isOriginal: true,
@@ -683,6 +892,7 @@ async function main() {
       sectionId: data.sectionId,
       ordinal: idx + 1,
       sourceRef: `법구경 제${vNum}게송 (Dhp ${vNum})`,
+      sourceRefEn: `Dhammapada Verse ${vNum} (Dhp ${vNum})`,
       topics: inferTopics(enText),
     });
     if (enText) {
@@ -707,12 +917,15 @@ async function main() {
   async function importSuttaCollection(config: {
     workId: string;
     title: string;
+    titleEn: string;
     subtitle: string;
+    subtitleEn: string;
     description: string;
+    descriptionEn: string;
     type: Work['type'];
     scpubId: string;
     sourceUrl: string;
-    paths: { enPath: string; rootPath: string; titleOverride?: string }[];
+    paths: { enPath: string; rootPath: string; titleOverride?: string; titleOverrideEn?: string }[];
     splitParagraphs?: boolean;
   }) {
     const enEdId = `ed-${config.workId}-en-sujato`;
@@ -740,6 +953,7 @@ async function main() {
         Object.entries(en).find(([k]) => k.endsWith(':0.2') || k.endsWith(':0.3'))?.[1]?.trim() ||
         suttaId.toUpperCase();
       const secTitle = item.titleOverride ?? titleFromFile;
+      const secTitleEn = item.titleOverrideEn ?? titleFromFile;
       const secId = `sec-${config.workId}-${suttaId}`;
       sections.push({
         id: secId,
@@ -747,6 +961,7 @@ async function main() {
         parentId: null,
         ordinal: i + 1,
         title: secTitle,
+        titleEn: secTitleEn,
         sourceRef: suttaId.toUpperCase(),
       });
 
@@ -774,6 +989,7 @@ async function main() {
             sectionId: secId,
             ordinal,
             sourceRef: `${secTitle} · ${suttaId.toUpperCase()} (${paraKey})`,
+            sourceRefEn: `${secTitleEn} · ${suttaId.toUpperCase()} (${paraKey})`,
             topics: inferTopics(enText),
           });
           segmentTexts.push({ segmentId: segId, editionId: enEdId, text: enText, reviewStatus: 'approved' });
@@ -801,6 +1017,7 @@ async function main() {
           sectionId: secId,
           ordinal,
           sourceRef: `${secTitle} (${suttaId.toUpperCase()})`,
+          sourceRefEn: `${secTitleEn} (${suttaId.toUpperCase()})`,
           topics: inferTopics(enText),
         });
         segmentTexts.push({ segmentId: segId, editionId: enEdId, text: enText, reviewStatus: 'approved' });
@@ -813,19 +1030,24 @@ async function main() {
     works.push({
       id: config.workId,
       title: config.title,
+      titleEn: config.titleEn,
       subtitle: config.subtitle,
+      subtitleEn: config.subtitleEn,
       tradition: 'early_buddhism',
       type: config.type,
       totalSegments: ordinal,
       description: config.description,
+      descriptionEn: config.descriptionEn,
     });
     editions.push(
       {
         id: enEdId,
         workId: config.workId,
         lang: 'en',
-        label: 'English (Bhikkhu Sujato · CC0)',
+        label: '영어 번역 (Bhikkhu Sujato · CC0)',
+        labelEn: 'English (Bhikkhu Sujato · CC0)',
         translator: 'Bhikkhu Sujato',
+        translatorEn: 'Bhikkhu Sujato',
         licenseId: 'CC0-1.0',
         sourceRevision: BILARA_COMMIT.slice(0, 10),
         isOriginal: false,
@@ -834,8 +1056,10 @@ async function main() {
         id: piEdId,
         workId: config.workId,
         lang: 'pi',
-        label: 'Pāli (Mahāsaṅgīti · CC0)',
+        label: '팔리어 원문 (Mahāsaṅgīti · CC0)',
+        labelEn: 'Original Pāli (Mahāsaṅgīti · CC0)',
         translator: 'Mahāsaṅgīti Tipiṭaka',
+        translatorEn: 'Mahāsaṅgīti Tipiṭaka',
         licenseId: 'CC0-1.0',
         sourceRevision: BILARA_COMMIT.slice(0, 10),
         isOriginal: true,
@@ -894,6 +1118,17 @@ async function main() {
     kp8: '보물단지 경 (Nidhikaṇḍasutta)',
     kp9: '자애경 (Karaṇīyamettasutta)',
   };
+  const kpTitlesEn: Record<string, string> = {
+    kp1: 'Going for Refuge (Saraṇattaya)',
+    kp2: 'The Ten Training Rules (Dasasikkhāpada)',
+    kp3: 'The Thirty-Two Parts (Dvattiṁsākāra)',
+    kp4: 'The Novice’s Questions (Kumārapañha)',
+    kp5: 'Discourse on Blessings (Maṅgalasutta)',
+    kp6: 'Discourse on Treasures (Ratanasutta)',
+    kp7: 'Hungry Shades Outside the Walls (Tirokuṭṭasutta)',
+    kp8: 'The Reserve Fund (Nidhikaṇḍasutta)',
+    kp9: 'Discourse on Loving-Kindness (Karaṇīyamettasutta)',
+  };
   const kpEnPaths = tree
     .filter((t) => t.path.startsWith('translation/en/sujato/sutta/kn/kp/') && t.path.endsWith('.json'))
     .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
@@ -901,8 +1136,12 @@ async function main() {
   await importSuttaCollection({
     workId: 'work-kp',
     title: '소송경 · 자애경·보배경 (Khuddakapāṭha)',
+    titleEn: 'Minor Readings (Khuddakapāṭha · 9 Suttas)',
     subtitle: '초기불교 · 9편 완역 (팔리어 원문 · 영어 CC0)',
+    subtitleEn: 'Early Buddhism · 9 Chanted Discourses (English · Pāli CC0)',
     description: '삼귀의, 행복경(길상경), 보배경, 자애경 등 초기불교 핵심 독송 경전 9편 전체입니다.',
+    descriptionEn:
+      'Complete collection of 9 foundational Early Buddhist chanting suttas including Karaṇīyamettasutta and Ratanasutta (Bhikkhu Sujato · CC0).',
     type: 'sutta',
     scpubId: 'scpub19',
     sourceUrl: 'https://github.com/suttacentral/bilara-data/tree/published/translation/en/sujato/sutta/kn/kp',
@@ -914,6 +1153,7 @@ async function main() {
           .replace('translation/en/sujato/', 'root/pli/ms/')
           .replace('_translation-en-sujato.json', '_root-pli-ms.json'),
         titleOverride: kpTitles[id],
+        titleOverrideEn: kpTitlesEn[id],
       };
     }),
   });
@@ -921,8 +1161,12 @@ async function main() {
   await importSuttaCollection({
     workId: 'work-sn56-11',
     title: '초전법륜경 (Dhammacakkappavattana)',
+    titleEn: 'Setting in Motion the Wheel of the Dhamma (SN 56.11)',
     subtitle: '초기불교 · 사성제와 팔정도 첫 설법 (팔리어 · 영어 CC0)',
+    subtitleEn: 'Early Buddhism · Four Noble Truths & Eightfold Path (English · Pāli CC0)',
     description: '부처님께서 깨달음 이후 다섯 비구에게 중도, 사성제, 팔정도를 처음 설하신 상윳따 니까야 56.11 경전 전문입니다.',
+    descriptionEn:
+      'The Buddha’s first discourse after awakening—teaching the Middle Way, Four Noble Truths, and Noble Eightfold Path (SN 56.11, CC0).',
     type: 'sutta',
     scpubId: 'scpub4',
     sourceUrl: 'https://github.com/suttacentral/bilara-data/tree/published/translation/en/sujato/sutta/sn/sn56',
@@ -931,6 +1175,7 @@ async function main() {
         enPath: 'translation/en/sujato/sutta/sn/sn56/sn56.11_translation-en-sujato.json',
         rootPath: 'root/pli/ms/sutta/sn/sn56/sn56.11_root-pli-ms.json',
         titleOverride: '초전법륜경 (SN 56.11)',
+        titleOverrideEn: 'Rolling Forth the Wheel of Dhamma (SN 56.11)',
       },
     ],
     splitParagraphs: true,
@@ -944,8 +1189,12 @@ async function main() {
   await importSuttaCollection({
     workId: 'work-snp',
     title: '숫타니파타 (Sutta Nipāta · 73경)',
+    titleEn: 'Sutta Nipāta (Anthology of 73 Discourses)',
     subtitle: '초기불교 · 전 5품 완역 (팔리어 원문 · 영어 CC0)',
+    subtitleEn: 'Early Buddhism · Complete 5 Chapters (English · Pāli CC0)',
     description: '가장 이른 시기의 초기불교 게송 모음집 숫타니파타(무소의 뿔 경, 자애경, 보배경, 피안품 등) 73편 전체입니다.',
+    descriptionEn:
+      'Complete 73 early Buddhist verse and prose discourses including Rhinoceros Sutta, Metta Sutta, and Aṭṭhakavagga (Bhikkhu Sujato · CC0).',
     type: 'sutta',
     scpubId: 'scpub17',
     sourceUrl: 'https://github.com/suttacentral/bilara-data/tree/published/translation/en/sujato/sutta/kn/snp',
@@ -965,8 +1214,12 @@ async function main() {
   await importSuttaCollection({
     workId: 'work-iti',
     title: '여시어경 (Itivuttaka · 112경)',
+    titleEn: 'Itivuttaka (So It Was Said · 112 Suttas)',
     subtitle: '초기불교 · 112편 완역 (팔리어 원문 · 영어 CC0)',
+    subtitleEn: 'Early Buddhism · 112 Discourses Complete (English · Pāli CC0)',
     description: '"세존께서 이와 같이 말씀하셨다"로 이어지는 산문과 게송 형식의 초기불교 핵심 가르침 112편 전체입니다.',
+    descriptionEn:
+      'All 112 short prose-and-verse teachings transmitted by Khujjuttarā (“So it was said by the Blessed One”) in English & Pāli (CC0).',
     type: 'sutta',
     scpubId: 'scpub16',
     sourceUrl: 'https://github.com/suttacentral/bilara-data/tree/published/translation/en/sujato/sutta/kn/iti',
@@ -986,8 +1239,12 @@ async function main() {
   await importSuttaCollection({
     workId: 'work-ud',
     title: '우다나 · 감흥어경 (Udāna · 80경)',
+    titleEn: 'Udāna (Inspired Utterances · 80 Suttas)',
     subtitle: '초기불교 · 8품 80편 완역 (팔리어 원문 · 영어 CC0)',
+    subtitleEn: 'Early Buddhism · 8 Chapters, 80 Suttas Complete (English · Pāli CC0)',
     description: '부처님께서 깊은 감흥 속에서 읊으신 게송과 인연 이야기를 담은 초기불교 경전 80편 전체입니다.',
+    descriptionEn:
+      'Complete 80 inspired utterances and origin narratives from the Pāli Canon translated by Bhikkhu Sujato (SuttaCentral CC0).',
     type: 'sutta',
     scpubId: 'scpub18',
     sourceUrl: 'https://github.com/suttacentral/bilara-data/tree/published/translation/en/sujato/sutta/kn/ud',
@@ -1007,8 +1264,11 @@ async function main() {
       toId: 'snp1.8',
       type: 'parallel_sutta',
       targetTitle: '숫타니파타 자애경 (Snp 1.8)',
+      targetTitleEn: 'Karaṇīyamettasutta (Snp 1.8)',
       targetRef: 'Snp 1.8',
+      targetRefEn: 'Snp 1.8',
       evidence: '소송경(Kp 9)과 숫타니파타(Snp 1.8)에 공통으로 전해지는 동일한 자애경(Karaṇīyamettasutta) 평행 본문',
+      evidenceEn: 'Parallel text of the Karaṇīyamettasutta transmitted in both Khuddakapāṭha (Kp 9) and Sutta Nipāta (Snp 1.8).',
       reviewStatus: 'approved',
     },
     {
@@ -1017,8 +1277,11 @@ async function main() {
       toId: 'snp2.1',
       type: 'parallel_sutta',
       targetTitle: '숫타니파타 보배경 (Snp 2.1)',
+      targetTitleEn: 'Ratanasutta (Snp 2.1)',
       targetRef: 'Snp 2.1',
+      targetRefEn: 'Snp 2.1',
       evidence: '소송경(Kp 6)과 숫타니파타(Snp 2.1)에 공통으로 수록된 보배경(Ratanasutta) 평행 본문',
+      evidenceEn: 'Parallel text of the Ratanasutta preserved in both Khuddakapāṭha (Kp 6) and Sutta Nipāta (Snp 2.1).',
       reviewStatus: 'approved',
     },
     {
@@ -1027,8 +1290,11 @@ async function main() {
       toId: 'snp2.4',
       type: 'parallel_sutta',
       targetTitle: '숫타니파타 행복경 (Snp 2.4)',
+      targetTitleEn: 'Maṅgalasutta (Snp 2.4)',
       targetRef: 'Snp 2.4',
+      targetRefEn: 'Snp 2.4',
       evidence: '소송경(Kp 5)과 숫타니파타(Snp 2.4)에 공통으로 수록된 대길상경(Maṅgalasutta) 평행 본문',
+      evidenceEn: 'Parallel text of the Maṅgalasutta preserved in both Khuddakapāṭha (Kp 5) and Sutta Nipāta (Snp 2.4).',
       reviewStatus: 'approved',
     },
     {
@@ -1037,13 +1303,16 @@ async function main() {
       toId: 'heart-01',
       type: 'thematic_related',
       targetTitle: '반야심경 제1단락',
+      targetTitleEn: 'Heart Sūtra · Opening',
       targetRef: 'T0251',
+      targetRefEn: 'Taishō 251',
       evidence: '두 문헌 모두 대승 반야부 경전으로 집착 없는 지혜(반야바라밀다)를 다룹니다.',
+      evidenceEn: 'Both Mahāyāna Prajñāpāramitā sūtras illuminate non-attaching wisdom (emptiness).',
       reviewStatus: 'approved',
     }
   );
 
-  // Curated approved study annotations for key opening segments
+  // Curated approved study annotations for key opening segments (KO & EN editions)
   annotations.push(
     {
       id: 'ann-diamond-01-ctx',
@@ -1051,8 +1320,26 @@ async function main() {
       editionId: 'ed-diamond-ko-ws',
       kind: 'context',
       title: '경전의 배경',
+      titleEn: 'Historical Context',
       body: '금강경 제1분 법회인유분은 부처님께서 사위성 기수급고독원에서 일상적인 탁발과 공양을 마치신 뒤 자리에 앉으시는 모습으로 시작하며, 평범한 일상 행위 자체가 수행과 깨달음의 토대임을 보여 줍니다.',
+      bodyEn:
+        'Chapter 1 opens with the Buddha walking for alms in Śrāvastī, eating, washing his feet, and sitting down—showing how ordinary daily mindfulness forms the ground of awakening.',
       source: '한국어 위키문헌 PD-자작 본문 서지 요약',
+      sourceEn: 'Editorial context note for Diamond Sūtra Chapter 1 (T235)',
+      reviewStatus: 'approved',
+    },
+    {
+      id: 'ann-diamond-01-ctx-en',
+      segmentId: 'diamond-01',
+      editionId: 'ed-diamond-en-ws',
+      kind: 'context',
+      title: '경전의 배경',
+      titleEn: 'Historical Context',
+      body: '금강경 제1분 법회인유분은 부처님께서 일상적인 탁발과 공양을 마치신 뒤 자리에 앉으시는 모습으로 시작하며, 평범한 일상이 깨달음의 토대임을 보여 줍니다.',
+      bodyEn:
+        'Chapter 1 opens with the Buddha walking for alms in Śrāvastī, eating, washing his feet, and sitting down—showing how ordinary daily mindfulness forms the ground of awakening.',
+      source: '금강경 제1분 본문 서지 요약',
+      sourceEn: 'Editorial context note for Diamond Sūtra Chapter 1 (T235)',
       reviewStatus: 'approved',
     },
     {
@@ -1061,8 +1348,26 @@ async function main() {
       editionId: 'ed-diamond-ko-ws',
       kind: 'easy_explanation',
       title: '쉽게 이해하기',
+      titleEn: 'Plain-Language Key Point',
       body: '응화비진분의 마지막 사구게("모든 유위법은 꿈과 같고 허깨비·물거품·그림자 같으며, 이슬과 같고 번개와 같으니 마땅히 이와 같이 관하라")는 조건 지어진 모든 현상이 고정불변하지 않음을 비추어 봅니다.',
+      bodyEn:
+        'The closing four-line gāthā compares all conditioned phenomena to dreams, illusions, bubbles, shadows, dew, and lightning—reminding practitioners not to cling to impermanent appearances.',
       source: '금강경 제32분 본문 정리',
+      sourceEn: 'Summary note for Diamond Sūtra Chapter 32 closing gāthā',
+      reviewStatus: 'approved',
+    },
+    {
+      id: 'ann-diamond-32-easy-en',
+      segmentId: 'diamond-32',
+      editionId: 'ed-diamond-en-ws',
+      kind: 'easy_explanation',
+      title: '쉽게 이해하기',
+      titleEn: 'Plain-Language Key Point',
+      body: '응화비진분의 마지막 사구게는 조건 지어진 모든 현상이 고정불변하지 않음을 비추어 봅니다.',
+      bodyEn:
+        'The closing four-line gāthā compares all conditioned phenomena to dreams, illusions, bubbles, shadows, dew, and lightning—reminding practitioners not to cling to impermanent appearances.',
+      source: '금강경 제32분 본문 정리',
+      sourceEn: 'Summary note for Diamond Sūtra Chapter 32 closing gāthā',
       reviewStatus: 'approved',
     },
     {
@@ -1071,8 +1376,26 @@ async function main() {
       editionId: 'ed-heart-ko-ws',
       kind: 'easy_explanation',
       title: '쉽게 이해하기',
+      titleEn: 'Plain-Language Key Point',
       body: '물질(색)을 비롯한 오온이 공성(고정된 실체가 없음)과 떨어져 있지 않음을 밝히며, 현상과 공이 둘이 아님을 설합니다.',
+      bodyEn:
+        'Avalokiteśvara sees that the five aggregates (form, feeling, perception, formations, consciousness) are empty of fixed self-existence, freeing the mind from suffering.',
       source: '반야심경 본문 정리',
+      sourceEn: 'Summary note for Heart Sūtra opening contemplation',
+      reviewStatus: 'approved',
+    },
+    {
+      id: 'ann-heart-02-easy-en',
+      segmentId: 'heart-02',
+      editionId: 'ed-heart-en-ws',
+      kind: 'easy_explanation',
+      title: '쉽게 이해하기',
+      titleEn: 'Plain-Language Key Point',
+      body: '오온이 모두 고정된 실체가 없음을 비추어 보고 온갖 괴로움에서 벗어남을 설합니다.',
+      bodyEn:
+        'Avalokiteśvara sees that the five aggregates (form, feeling, perception, formations, consciousness) are empty of fixed self-existence, freeing the mind from suffering.',
+      source: '반야심경 본문 정리',
+      sourceEn: 'Summary note for Heart Sūtra opening contemplation',
       reviewStatus: 'approved',
     }
   );
@@ -1081,27 +1404,43 @@ async function main() {
   const plans: ReadingPlan[] = [
     {
       id: 'plan-7d',
-      title: '7일 반야·자애 입문',
+      title: '7일 반야 지혜 입문',
+      titleEn: '7-Day Prajñā Wisdom Intro',
       durationDays: 7,
       dailyTarget: 1,
       workId: 'work-diamond',
-      description: '일주일 동안 금강경 핵심 장과 반야심경, 자애경을 하루 한 구절씩 읽는 계획입니다.',
+      description: '일주일 동안 금강경 처음 7개 장을 하루 한 장씩 천천히 읽고 사유하는 입문 계획입니다.',
+      descriptionEn: 'Read and reflect on the opening 7 chapters of the Diamond Sūtra—one chapter each day for a week.',
+    },
+    {
+      id: 'plan-9d-heart',
+      title: '9일 반야심경 마음 관조',
+      titleEn: '9-Day Heart Sūtra Reflection',
+      durationDays: 9,
+      dailyTarget: 1,
+      workId: 'work-heart',
+      description: '9일간 매일 한 단락씩 반야심경 전문을 음미하며 비움과 자유를 관조하는 계획입니다.',
+      descriptionEn: 'Contemplate the Heart Sūtra section by section over 9 peaceful days.',
     },
     {
       id: 'plan-30d',
       title: '30일 금강경 32분 완독',
+      titleEn: '30-Day Diamond Sūtra Complete',
       durationDays: 30,
       dailyTarget: 1,
       workId: 'work-diamond',
-      description: '한 달 동안 한국어 금강경 32장을 차분히 완독하는 읽기 계획입니다.',
+      description: '한 달 동안 금강경 32장 전체를 차분히 완독하는 읽기 계획입니다.',
+      descriptionEn: 'Complete all 32 chapters of the Diamond Sūtra calmly over 30 days.',
     },
     {
       id: 'plan-100d',
       title: '100일 법구경 423게송 순례',
+      titleEn: '100-Day Dhammapada Pilgrimage',
       durationDays: 100,
       dailyTarget: 4,
       workId: 'work-dhp',
       description: '매일 법구경 4게송 이상을 읽으며 423게송 전체를 순차 완독합니다.',
+      descriptionEn: 'Journey through all 423 verses of the Dhammapada at 4 verses per day over 100 days.',
     },
   ];
 
@@ -1112,6 +1451,14 @@ async function main() {
       planId: 'plan-7d',
       dayNumber: d,
       segmentIds: [`diamond-${String(d).padStart(2, '0')}`],
+    });
+  }
+  for (let d = 1; d <= 9; d++) {
+    planItems.push({
+      id: `pi-9d-heart-${d}`,
+      planId: 'plan-9d-heart',
+      dayNumber: d,
+      segmentIds: [`heart-${String(d).padStart(2, '0')}`],
     });
   }
   for (let d = 1; d <= 30; d++) {
@@ -1143,7 +1490,7 @@ async function main() {
 
   const pack: ContentPack = {
     manifest: {
-      version: `open-1.0.0-${BILARA_COMMIT.slice(0, 7)}`,
+      version: `open-1.1.0-${BILARA_COMMIT.slice(0, 7)}`,
       generatedAt: new Date().toISOString(),
       entries: manifestEntries,
     },

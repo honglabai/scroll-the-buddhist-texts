@@ -17,42 +17,38 @@ if (fs.existsSync(publicDir)) {
   }
 }
 
-// 2. Enhance dist/index.html for standalone full-screen mobile & desktop PWA launch
-let html = fs.readFileSync(indexPath, 'utf-8');
-
-html = html.replace('<html lang="en">', '<html lang="ko">');
-html = html.replace(
-  /<meta name="viewport" content="[^"]*"\s*\/?>/i,
-  '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />'
-);
-
-const pwaHeadTags = `
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="마음스크롤" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#151F1B" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+// 2. Enhance all exported dist/*.html files for standalone full-screen mobile & desktop PWA launch
+const pwaStyleAndSw = `
     <style id="pwa-fullscreen">
       html, body {
+        width: 100%;
         height: 100dvh;
         min-height: -webkit-fill-available;
         background-color: #151F1B;
         overscroll-behavior-y: none;
+        overflow: hidden;
         margin: 0;
         padding: 0;
       }
       #root {
+        width: 100%;
         height: 100dvh;
         min-height: -webkit-fill-available;
       }
     </style>
 `;
 
-if (!html.includes('apple-mobile-web-app-capable')) {
-  html = html.replace('</head>', `${pwaHeadTags}\n  </head>`);
-}
+const pwaHeadTags = `
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-touch-fullscreen" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Dharma Scroll" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#151F1B" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    ${pwaStyleAndSw}
+`;
 
 const swRegisterScript = `
   <script>
@@ -64,9 +60,27 @@ const swRegisterScript = `
   </script>
 `;
 
-if (!html.includes('navigator.serviceWorker.register')) {
-  html = html.replace('</body>', `${swRegisterScript}\n  </body>`);
+for (const entry of fs.readdirSync(distDir)) {
+  if (!entry.endsWith('.html')) continue;
+  const htmlFile = path.join(distDir, entry);
+  let html = fs.readFileSync(htmlFile, 'utf-8');
+
+  html = html.replace('<html lang="en">', '<html lang="ko">');
+  html = html.replace(
+    /<meta name="viewport" content="[^"]*"\s*\/?>/i,
+    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />'
+  );
+
+  if (!html.includes('id="pwa-fullscreen"')) {
+    const injectBlock = html.includes('rel="manifest"') ? pwaStyleAndSw : pwaHeadTags;
+    html = html.replace('</head>', `${injectBlock}\n  </head>`);
+  }
+
+  if (!html.includes('navigator.serviceWorker.register')) {
+    html = html.replace('</body>', `${swRegisterScript}\n  </body>`);
+  }
+
+  fs.writeFileSync(htmlFile, html, 'utf-8');
 }
 
-fs.writeFileSync(indexPath, html, 'utf-8');
 console.log('Prepared dist/ with full-screen PWA manifest, icons, service worker, and mobile meta tags.');

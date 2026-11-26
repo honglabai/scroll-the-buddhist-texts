@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -14,20 +14,31 @@ import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import type { SearchResultItem } from '../../src/data/repository';
 import type { Tradition } from '../../src/domain/types';
 import { useApp } from '../../src/features/app/AppProvider';
-
-const TRADITION_LABELS: Record<'all' | Tradition, string> = {
-  all: '전체',
-  early_buddhism: '초기불교',
-  mahayana: '대승불교',
-  korean_treatise: '한국 찬술',
-};
+import {
+  getLocalizedEditionLabel,
+  getLocalizedSourceRef,
+  getLocalizedWorkDescription,
+  getLocalizedWorkSubtitle,
+  getLocalizedWorkTitle,
+} from '../../src/i18n/strings';
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { palette, works, search, selectWorkAndSegment } = useApp();
+  const { palette, appLanguage, strings, works, search, selectWorkAndSegment } = useApp();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResultItem[] | null>(null);
   const [traditionFilter, setTraditionFilter] = useState<'all' | Tradition>('all');
+
+  useEffect(() => {
+    if (!query.trim()) return;
+    let cancelled = false;
+    search(query).then((found) => {
+      if (!cancelled) setResults(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [appLanguage, query, search]);
 
   const handleSearch = async (text: string) => {
     setQuery(text);
@@ -41,6 +52,13 @@ export default function LibraryScreen() {
 
   const filteredWorks =
     traditionFilter === 'all' ? works : works.filter((w) => w.tradition === traditionFilter);
+
+  const traditionEntries: ['all' | Tradition, string][] = [
+    ['all', strings.library.traditions.all],
+    ['early_buddhism', strings.library.traditions.early_buddhism],
+    ['mahayana', strings.library.traditions.mahayana],
+    ['korean_treatise', strings.library.traditions.korean_treatise],
+  ];
 
   const renderHighlighted = (text: string, q: string) => {
     const trimmed = q.trim();
@@ -62,19 +80,19 @@ export default function LibraryScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: palette.background }]}>
       <View style={[styles.header, { borderBottomColor: palette.border }]}>
-        <Text style={[styles.title, { color: palette.primary }]}>경전 탐색 및 검색</Text>
+        <Text style={[styles.title, { color: palette.primary }]}>{strings.library.title}</Text>
         <View style={[styles.searchBox, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
           <Ionicons name="search-outline" size={20} color={palette.textSecondary} />
           <TextInput
             value={query}
             onChangeText={handleSearch}
-            placeholder="경전명, 구절 번호, 한국어·영어 본문 검색"
+            placeholder={strings.library.searchPlaceholder}
             placeholderTextColor={palette.textSecondary}
-            accessibilityLabel="경전 검색 입력"
+            accessibilityLabel={strings.library.searchPlaceholder}
             style={[styles.searchInput, { color: palette.textPrimary }]}
           />
           {query.length > 0 && (
-            <Pressable onPress={() => handleSearch('')} accessibilityLabel="검색어 지우기">
+            <Pressable onPress={() => handleSearch('')} accessibilityLabel="Clear">
               <Ionicons name="close-circle" size={20} color={palette.textSecondary} />
             </Pressable>
           )}
@@ -84,11 +102,11 @@ export default function LibraryScreen() {
       {results !== null ? (
         <ScrollView contentContainerStyle={styles.list}>
           <Text style={{ color: palette.textSecondary, fontSize: 13 }}>
-            검색 결과 {results.length}건
+            {strings.library.searchCount(results.length)}
           </Text>
           {results.length === 0 ? (
             <View style={[styles.emptyBox, { borderColor: palette.border }]}>
-              <Text style={{ color: palette.textSecondary }}>일치하는 구절이 없습니다.</Text>
+              <Text style={{ color: palette.textSecondary }}>{strings.library.noResults}</Text>
             </View>
           ) : (
             results.map((r) => (
@@ -101,11 +119,11 @@ export default function LibraryScreen() {
                 style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}
               >
                 <Text style={{ color: palette.primary, fontWeight: '700', fontSize: 13 }}>
-                  {r.work.title} · {r.segment.sourceRef}
+                  {getLocalizedWorkTitle(r.work, appLanguage)} · {getLocalizedSourceRef(r.segment, appLanguage)}
                 </Text>
                 <View style={{ marginTop: 4 }}>{renderHighlighted(r.segmentText.text, query)}</View>
                 <Text style={{ color: palette.textSecondary, fontSize: 11, marginTop: 6 }}>
-                  {r.edition.label}
+                  {getLocalizedEditionLabel(r.edition, appLanguage)}
                 </Text>
               </Pressable>
             ))
@@ -114,7 +132,7 @@ export default function LibraryScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {(Object.keys(TRADITION_LABELS) as ('all' | Tradition)[]).map((key) => {
+            {traditionEntries.map(([key, label]) => {
               const active = traditionFilter === key;
               return (
                 <Pressable
@@ -129,51 +147,56 @@ export default function LibraryScreen() {
                   ]}
                 >
                   <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontWeight: '600', fontSize: 13 }}>
-                    {TRADITION_LABELS[key]}
+                    {label}
                   </Text>
                 </Pressable>
               );
             })}
           </ScrollView>
 
-          {filteredWorks.map((work) => (
-            <Pressable
-              key={work.id}
-              onPress={async () => {
-                await selectWorkAndSegment(work.id, undefined, 'sequential');
-                router.push('/(tabs)');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`${work.title} 읽기 시작`}
-              style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}
-            >
-              <View style={styles.workRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: palette.primary, fontSize: 17, fontWeight: '700' }}>
-                    {work.title}
-                  </Text>
-                  {work.subtitle && (
-                    <Text style={{ color: palette.textSecondary, fontSize: 12, marginTop: 2 }}>
-                      {work.subtitle}
+          {filteredWorks.map((work) => {
+            const title = getLocalizedWorkTitle(work, appLanguage);
+            const subtitle = getLocalizedWorkSubtitle(work, appLanguage);
+            const desc = getLocalizedWorkDescription(work, appLanguage);
+            return (
+              <Pressable
+                key={work.id}
+                onPress={async () => {
+                  await selectWorkAndSegment(work.id, undefined, 'sequential');
+                  router.push('/(tabs)');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={title}
+                style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}
+              >
+                <View style={styles.workRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: palette.primary, fontSize: 17, fontWeight: '700' }}>
+                      {title}
                     </Text>
-                  )}
-                </View>
-                <View style={styles.countBadgeRow}>
-                  <View style={[styles.countBadge, { borderColor: palette.border, backgroundColor: palette.background }]}>
-                    <Text style={{ color: palette.accent, fontSize: 11, fontWeight: '700' }}>
-                      {work.totalSegments}구절
-                    </Text>
+                    {subtitle && (
+                      <Text style={{ color: palette.textSecondary, fontSize: 12, marginTop: 2 }}>
+                        {subtitle}
+                      </Text>
+                    )}
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={palette.primary} />
+                  <View style={styles.countBadgeRow}>
+                    <View style={[styles.countBadge, { borderColor: palette.border, backgroundColor: palette.background }]}>
+                      <Text style={{ color: palette.accent, fontSize: 11, fontWeight: '700' }}>
+                        {strings.library.unitLabel(work.totalSegments)}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={palette.primary} />
+                  </View>
                 </View>
-              </View>
-              {work.description && (
-                <Text style={{ color: palette.textPrimary, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
-                  {work.description}
-                </Text>
-              )}
-            </Pressable>
-          ))}
+                {desc && (
+                  <Text style={{ color: palette.textPrimary, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
+                    {desc}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>

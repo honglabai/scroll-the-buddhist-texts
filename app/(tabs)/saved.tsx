@@ -12,10 +12,14 @@ interface SegmentSummary {
   previewText: string;
 }
 
+const ALL_FOLDERS_SENTINEL = '__ALL__';
+
 export default function SavedScreen() {
   const router = useRouter();
   const {
     palette,
+    appLanguage,
+    strings,
     bookmarks,
     notes,
     toggleBookmark,
@@ -26,20 +30,26 @@ export default function SavedScreen() {
   } = useApp();
 
   const [tab, setTab] = useState<'bookmarks' | 'notes'>('bookmarks');
-  const [selectedFolder, setSelectedFolder] = useState<string>('전체');
+  const [selectedFolder, setSelectedFolder] = useState<string>(ALL_FOLDERS_SENTINEL);
   const [summaries, setSummaries] = useState<Record<string, SegmentSummary>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState('');
 
+  const formatFolderLabel = (folder: string) => {
+    if (folder === ALL_FOLDERS_SENTINEL) return strings.saved.allFolder;
+    if (folder === '기본 모음' || folder === 'Favorites') return strings.saved.defaultFolder;
+    return folder;
+  };
+
   const folders = useMemo(() => {
-    const set = new Set<string>(['전체']);
+    const set = new Set<string>([ALL_FOLDERS_SENTINEL]);
     for (const bm of bookmarks) set.add(bm.folder);
     return Array.from(set);
   }, [bookmarks]);
 
   const visibleBookmarks = useMemo(
     () =>
-      selectedFolder === '전체'
+      selectedFolder === ALL_FOLDERS_SENTINEL
         ? bookmarks
         : bookmarks.filter((bm) => bm.folder === selectedFolder),
     [bookmarks, selectedFolder]
@@ -63,7 +73,7 @@ export default function SavedScreen() {
     return () => {
       cancelled = true;
     };
-  }, [bookmarks, notes, getSegmentSummary]);
+  }, [appLanguage, bookmarks, notes, getSegmentSummary]);
 
   const jumpToVerse = async (segmentId: string) => {
     const ok = await navigateToSegmentById(segmentId);
@@ -75,7 +85,7 @@ export default function SavedScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: palette.background }]}>
       <View style={[styles.header, { borderBottomColor: palette.border }]}>
-        <Text style={[styles.title, { color: palette.primary }]}>저장한 구절과 기록</Text>
+        <Text style={[styles.title, { color: palette.primary }]}>{strings.saved.title}</Text>
         <View style={styles.segmentRow}>
           <Pressable
             onPress={() => setTab('bookmarks')}
@@ -85,7 +95,7 @@ export default function SavedScreen() {
             ]}
           >
             <Text style={{ color: tab === 'bookmarks' ? palette.textOnPrimary : palette.textPrimary, fontWeight: '700' }}>
-              마음에 담은 구절 ({bookmarks.length})
+              {strings.saved.bookmarksTab(bookmarks.length)}
             </Text>
           </Pressable>
           <Pressable
@@ -96,7 +106,7 @@ export default function SavedScreen() {
             ]}
           >
             <Text style={{ color: tab === 'notes' ? palette.textOnPrimary : palette.textPrimary, fontWeight: '700' }}>
-              비공개 일지 ({notes.length})
+              {strings.saved.notesTab(notes.length)}
             </Text>
           </Pressable>
         </View>
@@ -122,7 +132,7 @@ export default function SavedScreen() {
                       ]}
                     >
                       <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontSize: 12, fontWeight: '600' }}>
-                        {folder}
+                        {formatFolderLabel(folder)}
                       </Text>
                     </Pressable>
                   );
@@ -134,7 +144,7 @@ export default function SavedScreen() {
               <View style={[styles.emptyBox, { borderColor: palette.border }]}>
                 <Ionicons name="heart-outline" size={32} color={palette.secondary} />
                 <Text style={{ color: palette.textSecondary, marginTop: 8, textAlign: 'center' }}>
-                  아직 마음에 담은 구절이 없습니다. 홈에서 하트 버튼을 눌러 저장해 보세요.
+                  {strings.saved.emptyBookmarks}
                 </Text>
               </View>
             ) : (
@@ -148,7 +158,7 @@ export default function SavedScreen() {
                       </Text>
                       <Pressable
                         onPress={() => toggleBookmark(bm.segmentId, bm.editionId)}
-                        accessibilityLabel="마음에 담기 취소"
+                        accessibilityLabel={strings.noteModal.del}
                         style={styles.iconBtn}
                       >
                         <Ionicons name="trash-outline" size={20} color={palette.danger} />
@@ -160,13 +170,15 @@ export default function SavedScreen() {
                       </Text>
                     ) : null}
                     <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
-                      모음: {bm.folder} · 저장일: {new Date(bm.createdAt).toLocaleDateString()}
+                      {strings.saved.folderLabel(formatFolderLabel(bm.folder), new Date(bm.createdAt).toLocaleDateString())}
                     </Text>
                     <Pressable
                       onPress={() => jumpToVerse(bm.segmentId)}
                       style={[styles.jumpBtn, { borderColor: palette.primary }]}
                     >
-                      <Text style={{ color: palette.primary, fontWeight: '600' }}>해당 구절로 이동 →</Text>
+                      <Text style={{ color: palette.primary, fontWeight: '600' }}>
+                        {strings.saved.jumpToVerse}
+                      </Text>
                     </Pressable>
                   </View>
                 );
@@ -177,7 +189,7 @@ export default function SavedScreen() {
           <View style={[styles.emptyBox, { borderColor: palette.border }]}>
             <Ionicons name="create-outline" size={32} color={palette.secondary} />
             <Text style={{ color: palette.textSecondary, marginTop: 8, textAlign: 'center' }}>
-              작성된 비공개 수행 일지가 없습니다.
+              {strings.saved.emptyNotes}
             </Text>
           </View>
         ) : (
@@ -196,12 +208,16 @@ export default function SavedScreen() {
                         setEditingNoteId(isEditing ? null : n.id);
                         setEditBody(n.body);
                       }}
-                      accessibilityLabel="일지 수정"
+                      accessibilityLabel={strings.noteModal.edit}
                       style={styles.iconBtn}
                     >
                       <Ionicons name="create-outline" size={20} color={palette.primary} />
                     </Pressable>
-                    <Pressable onPress={() => deleteNote(n.id)} accessibilityLabel="일지 삭제" style={styles.iconBtn}>
+                    <Pressable
+                      onPress={() => deleteNote(n.id)}
+                      accessibilityLabel={strings.noteModal.del}
+                      style={styles.iconBtn}
+                    >
                       <Ionicons name="trash-outline" size={20} color={palette.danger} />
                     </Pressable>
                   </View>
@@ -226,7 +242,9 @@ export default function SavedScreen() {
                       }}
                       style={[styles.jumpBtn, { borderColor: palette.primary }]}
                     >
-                      <Text style={{ color: palette.primary, fontWeight: '700' }}>수정 저장</Text>
+                      <Text style={{ color: palette.primary, fontWeight: '700' }}>
+                        {strings.saved.saveEdit}
+                      </Text>
                     </Pressable>
                   </View>
                 ) : (
@@ -241,7 +259,9 @@ export default function SavedScreen() {
                     {new Date(n.updatedAt).toLocaleString()}
                   </Text>
                   <Pressable onPress={() => jumpToVerse(n.segmentId)}>
-                    <Text style={{ color: palette.primary, fontSize: 12, fontWeight: '600' }}>원문 보기 →</Text>
+                    <Text style={{ color: palette.primary, fontSize: 12, fontWeight: '600' }}>
+                      {strings.saved.viewOriginal}
+                    </Text>
                   </Pressable>
                 </View>
               </View>

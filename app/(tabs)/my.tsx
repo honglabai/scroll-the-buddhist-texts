@@ -16,18 +16,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FONT_SCALE_MAP, MIN_TOUCH_SIZE } from '../../src/components/theme';
 import { getFeatureFlags } from '../../src/domain/featureFlags';
-import type { FontScaleLevel, ThemeMode } from '../../src/domain/types';
+import type { AppLanguage, FontScaleLevel, ThemeMode } from '../../src/domain/types';
 import { useApp } from '../../src/features/app/AppProvider';
 import { SUBSCRIPTION_PLANS_HYPOTHESIS } from '../../src/features/extensions/extensionServices';
 
 export default function MyScreen() {
   const {
     palette,
+    appLanguage,
+    strings,
     settings,
     readEventsCount,
     bookmarks,
     notes,
     rightsEntries,
+    setAppLanguage,
     updateFontScale,
     updateFontStyle,
     updateLineHeight,
@@ -52,6 +55,7 @@ export default function MyScreen() {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
     const standalone =
       window.matchMedia?.('(display-mode: standalone)').matches ||
+      window.matchMedia?.('(display-mode: fullscreen)').matches ||
       Boolean((window.navigator as { standalone?: boolean }).standalone);
     Promise.resolve().then(() => setIsStandalone(standalone));
 
@@ -69,7 +73,7 @@ export default function MyScreen() {
       setDeferredPrompt(null);
       return;
     }
-    setStatusMessage('모바일 브라우저 메뉴에서 "홈 화면에 추가" 또는 "앱 설치"를 누르면 주소창 없이 전체화면으로 실행됩니다.');
+    setStatusMessage(strings.my.pwaToast);
   };
 
   const handleExport = async () => {
@@ -83,11 +87,11 @@ export default function MyScreen() {
       a.download = `dharma-scroll-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      setStatusMessage('백업 JSON 파일을 다운로드했습니다.');
+      setStatusMessage(strings.my.exportedMsg);
       return;
     }
     await Share.share({
-      title: '마음스크롤 개인 데이터 백업',
+      title: strings.appName,
       message: json,
     });
   };
@@ -97,37 +101,35 @@ export default function MyScreen() {
       await importBackup(restoreJson);
       setRestoreModalOpen(false);
       setRestoreJson('');
-      setStatusMessage('백업 데이터를 복원했습니다.');
+      setStatusMessage(strings.my.restoredMsg);
     } catch (err) {
-      Alert.alert('복원 실패', err instanceof Error ? err.message : '올바른 JSON 백업이 아닙니다.');
+      Alert.alert(strings.my.restoreFailTitle, err instanceof Error ? err.message : strings.my.restoreFailTitle);
     }
   };
 
   const handleWipe = () => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      if (window.confirm('저장한 구절, 비공개 일지, 읽기 기록 및 설정이 영구 삭제됩니다. 계속하시겠습니까?')) {
-        wipeAllPersonalData().then(() => setStatusMessage('모든 개인 데이터를 삭제했습니다.'));
+      if (window.confirm(strings.my.wipeConfirmBody)) {
+        wipeAllPersonalData().then(() => setStatusMessage(strings.my.wipedMsg));
       }
       return;
     }
-    Alert.alert(
-      '모든 개인 데이터 삭제',
-      '저장한 구절, 비공개 일지, 읽기 기록 및 설정이 영구적으로 삭제됩니다. 계속하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: () => wipeAllPersonalData().then(() => setStatusMessage('모든 개인 데이터를 삭제했습니다.')),
-        },
-      ]
-    );
+    Alert.alert(strings.my.wipeConfirmTitle, strings.my.wipeConfirmBody, [
+      { text: strings.my.cancel, style: 'cancel' },
+      {
+        text: strings.my.confirmDelete,
+        style: 'destructive',
+        onPress: () => wipeAllPersonalData().then(() => setStatusMessage(strings.my.wipedMsg)),
+      },
+    ]);
   };
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.title, { color: palette.primary }]}>My · 설정 및 개인정보</Text>
+        <Text style={[styles.title, { color: palette.primary }]}>
+          {strings.tabs.my} · {strings.my.title}
+        </Text>
 
         {statusMessage && (
           <View style={[styles.banner, { backgroundColor: palette.highlightBg }]}>
@@ -138,24 +140,56 @@ export default function MyScreen() {
           </View>
         )}
 
+        {/* Language Selector (한국어 / English) */}
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.languageTitle}</Text>
+          <View style={styles.rowGap}>
+            {(
+              [
+                { id: 'ko', label: strings.my.koreanLabel },
+                { id: 'en', label: strings.my.englishLabel },
+              ] as { id: AppLanguage; label: string }[]
+            ).map((langOpt) => {
+              const active = appLanguage === langOpt.id;
+              return (
+                <Pressable
+                  key={langOpt.id}
+                  onPress={() => setAppLanguage(langOpt.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={langOpt.label}
+                  style={[
+                    styles.choiceBtn,
+                    {
+                      backgroundColor: active ? palette.primary : palette.surfaceElevated,
+                      borderColor: palette.border,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: active ? palette.textOnPrimary : palette.textPrimary, fontWeight: '700' }}>
+                    {langOpt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {/* PWA Fullscreen Install Status (Web) */}
         {Platform.OS === 'web' && (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Text style={[styles.cardTitle, { color: palette.primary }]}>
-              전체화면 앱 실행 (주소창 제거)
-            </Text>
+            <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.pwaTitle}</Text>
             {isStandalone ? (
               <Text style={{ color: palette.primary, fontSize: 13, fontWeight: '600' }}>
-                ✓ 현재 주소창 없는 전체화면 앱(Standalone) 모드로 실행 중입니다.
+                {strings.my.pwaActive}
               </Text>
             ) : (
               <>
                 <Text style={{ color: palette.textSecondary, fontSize: 13, lineHeight: 19 }}>
-                  iOS Safari(공유 → 홈 화면에 추가) 또는 Android Chrome(앱 설치)으로 추가하면 상단 주소창과 브라우저 메뉴 없이 전체화면으로 실행됩니다.
+                  {strings.my.pwaGuide}
                 </Text>
                 <Pressable onPress={handleInstallApp} style={[styles.actionBtn, { borderColor: palette.primary }]}>
                   <Text style={{ color: palette.primary, fontWeight: '700' }}>
-                    {deferredPrompt ? '홈 화면에 앱 설치하기' : '전체화면 앱 설치 안내 보기'}
+                    {deferredPrompt ? strings.my.pwaInstallBtn : strings.my.pwaGuideBtn}
                   </Text>
                 </Pressable>
               </>
@@ -165,18 +199,18 @@ export default function MyScreen() {
 
         {/* Stats */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>나의 수행 발자취 (로컬 전용)</Text>
+          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.statsTitle}</Text>
           <View style={styles.statsRow}>
-            <StatBox label="읽은 구절" value={readEventsCount} color={palette.primary} subColor={palette.textSecondary} />
-            <StatBox label="담은 구절" value={bookmarks.length} color={palette.primary} subColor={palette.textSecondary} />
-            <StatBox label="수행 일지" value={notes.length} color={palette.primary} subColor={palette.textSecondary} />
+            <StatBox label={strings.my.statRead} value={readEventsCount} color={palette.primary} subColor={palette.textSecondary} />
+            <StatBox label={strings.my.statSaved} value={bookmarks.length} color={palette.primary} subColor={palette.textSecondary} />
+            <StatBox label={strings.my.statNotes} value={notes.length} color={palette.primary} subColor={palette.textSecondary} />
           </View>
         </View>
 
         {/* 5-step Font Size */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <Text style={[styles.cardTitle, { color: palette.primary }]}>
-            본문 글자 크기 (5단계 · 현재 {FONT_SCALE_MAP[settings.fontScaleLevel]}sp)
+            {strings.my.fontSizeTitle(FONT_SCALE_MAP[settings.fontScaleLevel])}
           </Text>
           <View style={styles.rowGap}>
             {([1, 2, 3, 4, 5] as FontScaleLevel[]).map((lvl) => {
@@ -186,7 +220,7 @@ export default function MyScreen() {
                   key={lvl}
                   onPress={() => updateFontScale(lvl)}
                   accessibilityRole="button"
-                  accessibilityLabel={`글자 크기 ${lvl}단계 (${FONT_SCALE_MAP[lvl]}sp)`}
+                  accessibilityLabel={`${lvl}`}
                   style={[
                     styles.choiceBtn,
                     {
@@ -203,12 +237,14 @@ export default function MyScreen() {
             })}
           </View>
 
-          <Text style={[styles.cardTitle, { color: palette.primary, marginTop: 6 }]}>본문 글꼴 및 줄 간격</Text>
+          <Text style={[styles.cardTitle, { color: palette.primary, marginTop: 6 }]}>
+            {strings.my.fontStyleAndLineTitle}
+          </Text>
           <View style={styles.rowGap}>
             {(
               [
-                { id: 'sans', label: '고딕체' },
-                { id: 'serif', label: '명조체' },
+                { id: 'sans', label: strings.my.sansLabel },
+                { id: 'serif', label: strings.my.serifLabel },
               ] as const
             ).map((f) => {
               const active = settings.fontStyle === f.id;
@@ -234,14 +270,14 @@ export default function MyScreen() {
 
           <View style={styles.rowGap}>
             {[
-              { value: 1.35, label: '좁게' },
-              { value: 1.55, label: '보통' },
-              { value: 1.8, label: '넓게' },
+              { value: 1.35, label: strings.my.lineNarrow },
+              { value: 1.55, label: strings.my.lineNormal },
+              { value: 1.8, label: strings.my.lineWide },
             ].map((lh) => {
               const active = Math.abs(settings.lineHeightMultiplier - lh.value) < 0.05;
               return (
                 <Pressable
-                  key={lh.label}
+                  key={lh.value}
                   onPress={() => updateLineHeight(lh.value)}
                   style={[
                     styles.choiceBtn,
@@ -262,13 +298,13 @@ export default function MyScreen() {
 
         {/* Theme */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>화면 테마</Text>
+          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.themeTitle}</Text>
           <View style={styles.rowGap}>
             {(
               [
-                { id: 'system', label: '시스템' },
-                { id: 'light', label: '라이트(한지)' },
-                { id: 'dark', label: '다크(수묵)' },
+                { id: 'system', label: strings.my.themeSystem },
+                { id: 'light', label: strings.my.themeLight },
+                { id: 'dark', label: strings.my.themeDark },
               ] as { id: ThemeMode; label: string }[]
             ).map((t) => {
               const active = settings.themeMode === t.id;
@@ -296,7 +332,7 @@ export default function MyScreen() {
         {/* Accessibility & TTS */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <View style={styles.rowBetween}>
-            <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>모션 감소 (애니메이션 최소화)</Text>
+            <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>{strings.my.reduceMotion}</Text>
             <Switch
               value={settings.reduceMotion}
               onValueChange={updateReduceMotion}
@@ -305,7 +341,7 @@ export default function MyScreen() {
           </View>
 
           <Text style={[styles.cardTitle, { color: palette.primary, marginTop: 8 }]}>
-            음성 낭독(TTS) 속도: {settings.ttsRate.toFixed(2)}x
+            {strings.my.ttsSpeed(settings.ttsRate)}
           </Text>
           <View style={styles.rowGap}>
             {[0.8, 0.95, 1.15].map((r) => {
@@ -333,41 +369,41 @@ export default function MyScreen() {
 
         {/* Sources & Privacy */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>출처 · 권리 · 개인정보</Text>
+          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.sourcesTitle}</Text>
           <Pressable onPress={() => setSourcesModalOpen(true)} style={[styles.actionBtn, { borderColor: palette.primary }]}>
             <Text style={{ color: palette.primary, fontWeight: '700' }}>
-              수록 판본 출처 및 권리 안내 ({rightsEntries.length}건)
+              {strings.my.sourcesBtn(rightsEntries.length)}
             </Text>
           </Pressable>
           <Pressable onPress={() => setPrivacyModalOpen(true)} style={[styles.actionBtn, { borderColor: palette.border }]}>
-            <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>개인정보 처리방침 및 오픈소스 고지</Text>
+            <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>{strings.my.privacyBtn}</Text>
           </Pressable>
         </View>
 
         {/* Backup & Delete */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.cardTitle, { color: palette.primary }]}>데이터 백업 및 삭제</Text>
+          <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.backupTitle}</Text>
           <Text style={{ color: palette.textSecondary, fontSize: 13, lineHeight: 19 }}>
-            모든 읽기 기록과 수행 일지는 기기 내부에만 저장되며, 외부 서버로 전송되지 않습니다.
+            {strings.my.backupDesc}
           </Text>
           <Pressable onPress={handleExport} style={[styles.actionBtn, { borderColor: palette.primary }]}>
-            <Text style={{ color: palette.primary, fontWeight: '700' }}>JSON으로 내보내기 (백업)</Text>
+            <Text style={{ color: palette.primary, fontWeight: '700' }}>{strings.my.exportBtn}</Text>
           </Pressable>
           <Pressable onPress={() => setRestoreModalOpen(true)} style={[styles.actionBtn, { borderColor: palette.border }]}>
-            <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>JSON 백업에서 복원하기</Text>
+            <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>{strings.my.restoreBtn}</Text>
           </Pressable>
           <Pressable onPress={handleWipe} style={[styles.actionBtn, { borderColor: palette.danger }]}>
-            <Text style={{ color: palette.danger, fontWeight: '700' }}>모든 개인 데이터 삭제</Text>
+            <Text style={{ color: palette.danger, fontWeight: '700' }}>{strings.my.wipeBtn}</Text>
           </Pressable>
         </View>
 
         {/* Stage 8 Optional Feature Flags */}
         {flags.premium && (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Text style={[styles.cardTitle, { color: palette.primary }]}>마음스크롤 Plus (실험 기능)</Text>
+            <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.appName} Plus</Text>
             {SUBSCRIPTION_PLANS_HYPOTHESIS.map((p) => (
               <Text key={p.id} style={{ color: palette.textPrimary, fontSize: 13 }}>
-                • {p.label}: {p.priceKrw.toLocaleString()}원 / {p.period}
+                • {p.label}: {p.priceKrw.toLocaleString()} / {p.period}
               </Text>
             ))}
           </View>
@@ -378,7 +414,7 @@ export default function MyScreen() {
       <Modal visible={sourcesModalOpen} animationType="slide" onRequestClose={() => setSourcesModalOpen(false)}>
         <View style={[styles.modalContainer, { backgroundColor: palette.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: palette.border }]}>
-            <Text style={[styles.modalTitle, { color: palette.primary }]}>수록 판본 출처 및 권리 안내</Text>
+            <Text style={[styles.modalTitle, { color: palette.primary }]}>{strings.my.sourcesModalTitle}</Text>
             <Pressable onPress={() => setSourcesModalOpen(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color={palette.textPrimary} />
             </Pressable>
@@ -390,10 +426,12 @@ export default function MyScreen() {
                   {entry.editionId} ({entry.status})
                 </Text>
                 <Text style={{ color: palette.textPrimary, fontSize: 13 }}>
-                  번역/편집: {entry.translator} · 라이선스: {entry.license}
+                  {strings.my.translatorLabel}: {entry.translator} · {strings.my.licenseLabel}: {entry.license}
                 </Text>
                 <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
-                  공유: {entry.allowShare ? '허용' : '제한'} · 음성(TTS): {entry.allowTTS ? '허용' : '제한'} · AI 근거: {entry.allowAIProcessing ? '허용' : '제한'}
+                  {strings.my.permShare}: {entry.allowShare ? strings.my.allowed : strings.my.restricted} ·{' '}
+                  {strings.my.permTts}: {entry.allowTTS ? strings.my.allowed : strings.my.restricted} ·{' '}
+                  {strings.my.permAi}: {entry.allowAIProcessing ? strings.my.allowed : strings.my.restricted}
                 </Text>
                 <Text style={{ color: palette.textSecondary, fontSize: 11 }}>{entry.permissionEvidence}</Text>
               </View>
@@ -406,20 +444,20 @@ export default function MyScreen() {
       <Modal visible={privacyModalOpen} animationType="slide" onRequestClose={() => setPrivacyModalOpen(false)}>
         <View style={[styles.modalContainer, { backgroundColor: palette.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: palette.border }]}>
-            <Text style={[styles.modalTitle, { color: palette.primary }]}>개인정보 처리방침 및 오픈소스 고지</Text>
+            <Text style={[styles.modalTitle, { color: palette.primary }]}>{strings.my.privacyModalTitle}</Text>
             <Pressable onPress={() => setPrivacyModalOpen(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color={palette.textPrimary} />
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.content}>
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-              <Text style={[styles.cardTitle, { color: palette.primary }]}>개인정보 최소 수집 및 로컬 비공개 원칙</Text>
+              <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.privacyHeading}</Text>
               <Text style={{ color: palette.textPrimary, fontSize: 14, lineHeight: 21 }}>
-                본 앱은 비회원·오프라인 우선으로 작동하며, 사용자의 종교·사상·신념을 드러낼 수 있는 경전 읽기 기록, 북마크, 수행 일지를 외부 서버에 저장하지 않습니다. 광고 추적이나 맞춤형 광고 타기팅을 수행하지 않으며, AI 탐구 기능 이용 시에도 개인 일지는 전송되지 않습니다.
+                {strings.my.privacyBody}
               </Text>
             </View>
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-              <Text style={[styles.cardTitle, { color: palette.primary }]}>오픈소스 고지</Text>
+              <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.ossHeading}</Text>
               <Text style={{ color: palette.textSecondary, fontSize: 13, lineHeight: 20 }}>
                 Expo, React Native, React, TypeScript, expo-router, expo-sqlite, expo-speech, expo-notifications, @expo/vector-icons
               </Text>
@@ -432,7 +470,7 @@ export default function MyScreen() {
       <Modal visible={restoreModalOpen} animationType="slide" onRequestClose={() => setRestoreModalOpen(false)}>
         <View style={[styles.modalContainer, { backgroundColor: palette.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: palette.border }]}>
-            <Text style={[styles.modalTitle, { color: palette.primary }]}>JSON 백업 복원</Text>
+            <Text style={[styles.modalTitle, { color: palette.primary }]}>{strings.my.restoreModalTitle}</Text>
             <Pressable onPress={() => setRestoreModalOpen(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color={palette.textPrimary} />
             </Pressable>
@@ -442,7 +480,7 @@ export default function MyScreen() {
               value={restoreJson}
               onChangeText={setRestoreJson}
               multiline
-              placeholder="내보낸 백업 JSON 전체를 붙여넣으세요"
+              placeholder={strings.my.restorePlaceholder}
               placeholderTextColor={palette.textSecondary}
               style={[
                 styles.jsonInput,
@@ -450,7 +488,7 @@ export default function MyScreen() {
               ]}
             />
             <Pressable onPress={handleRestore} style={[styles.actionBtn, { backgroundColor: palette.primary, borderColor: palette.primary }]}>
-              <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>백업 데이터 복원 실행</Text>
+              <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>{strings.my.restoreExecBtn}</Text>
             </Pressable>
           </View>
         </View>

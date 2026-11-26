@@ -19,6 +19,13 @@ import {
   isCommentAllowed,
   type CommentModerationItem,
 } from '../features/extensions/extensionServices';
+import {
+  getLocalizedAnnotation,
+  getLocalizedEditionLabel,
+  getLocalizedRelatedLink,
+  getLocalizedSourceRef,
+  getLocalizedWorkTitle,
+} from '../i18n/strings';
 import { AIStudyService } from '../services/aiStudyService';
 import { MIN_TOUCH_SIZE } from './theme';
 
@@ -37,7 +44,7 @@ export function StudyModal({
   onClose: () => void;
   onNavigateToSegment: (segmentId: string) => void;
 }) {
-  const { palette, getStudyDetails } = useApp();
+  const { palette, appLanguage, strings, getStudyDetails } = useApp();
   const flags = useMemo(() => getFeatureFlags(), []);
   const [tab, setTab] = useState<StudyTab>('easy');
   const [loading, setLoading] = useState(false);
@@ -88,7 +95,7 @@ export function StudyModal({
 
   const runAIStudy = async () => {
     if (!item.segmentText || !item.rights) {
-      setAiError('승인된 판본 데이터가 없어 AI 탐구를 실행할 수 없습니다.');
+      setAiError(strings.study.aiMissingCorpus);
       return;
     }
     setAiLoading(true);
@@ -123,7 +130,7 @@ export function StudyModal({
       {
         id: `c-${Date.now()}`,
         segmentId: item.segment.id,
-        authorAlias: '수행자',
+        authorAlias: appLanguage === 'en' ? 'Practitioner' : '수행자',
         body: commentInput.trim(),
         reportedCount: 0,
         isBlockedAuthor: false,
@@ -134,12 +141,12 @@ export function StudyModal({
   };
 
   const tabs: { id: StudyTab; label: string }[] = [
-    { id: 'easy', label: '쉬운 해설' },
-    { id: 'context', label: '배경' },
-    { id: 'terms', label: '원어' },
-    { id: 'related', label: '관련 경전' },
-    { id: 'practice', label: '교리·실천' },
-    ...(flags.aiStudy ? [{ id: 'ai' as const, label: 'AI 탐구' }] : []),
+    { id: 'easy', label: strings.study.tabs.easy },
+    { id: 'context', label: strings.study.tabs.context },
+    { id: 'terms', label: strings.study.tabs.terms },
+    { id: 'related', label: strings.study.tabs.related },
+    { id: 'practice', label: strings.study.tabs.practice },
+    ...(flags.aiStudy ? [{ id: 'ai' as const, label: strings.study.tabs.ai }] : []),
   ];
 
   const renderAnnotationList = (items: Annotation[]) => {
@@ -147,39 +154,48 @@ export function StudyModal({
       return (
         <View style={[styles.emptyBox, { borderColor: palette.border }]}>
           <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
-            검수된 해설이 아직 없습니다.
+            {strings.study.emptyAnnotations}
           </Text>
         </View>
       );
     }
-    return items.map((ann) => (
-      <View key={ann.id} style={[styles.block, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        {ann.title && <Text style={[styles.blockTitle, { color: palette.primary }]}>{ann.title}</Text>}
-        <Text style={[styles.blockBody, { color: palette.textPrimary }]}>{ann.body}</Text>
-        {ann.uncertaintyNote && (
-          <Text style={[styles.uncertainty, { color: palette.accent }]}>
-            유의: {ann.uncertaintyNote}
+    return items.map((ann) => {
+      const loc = getLocalizedAnnotation(ann, appLanguage);
+      return (
+        <View key={ann.id} style={[styles.block, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          {loc.title && <Text style={[styles.blockTitle, { color: palette.primary }]}>{loc.title}</Text>}
+          <Text style={[styles.blockBody, { color: palette.textPrimary }]}>{loc.body}</Text>
+          {ann.uncertaintyNote && (
+            <Text style={[styles.uncertainty, { color: palette.accent }]}>
+              {strings.study.notePrefix}: {ann.uncertaintyNote}
+            </Text>
+          )}
+          <Text style={[styles.sourceLabel, { color: palette.textSecondary }]}>
+            {strings.study.sourcePrefix}: {loc.source}
           </Text>
-        )}
-        <Text style={[styles.sourceLabel, { color: palette.textSecondary }]}>출처: {ann.source}</Text>
-      </View>
-    ));
+        </View>
+      );
+    });
   };
+
+  const workTitle = getLocalizedWorkTitle(item.work, appLanguage);
+  const sourceRef = getLocalizedSourceRef(item.segment, appLanguage);
+  const editionLabel = getLocalizedEditionLabel(item.edition, appLanguage);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: palette.background }]}>
         <View style={[styles.header, { borderBottomColor: palette.border }]}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: palette.primary }]}>경전 탐구</Text>
+            <Text style={[styles.title, { color: palette.primary }]}>{strings.study.title}</Text>
             <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-              {item.work.title} · {item.segment.sourceRef}
+              {workTitle} · {sourceRef}
             </Text>
           </View>
           <Pressable
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="경전 탐구 닫기"
+            accessibilityLabel={strings.noteModal.discard}
             style={styles.closeBtn}
           >
             <Ionicons name="close" size={24} color={palette.textPrimary} />
@@ -189,10 +205,10 @@ export function StudyModal({
         {/* Original Verse Quote */}
         <View style={[styles.quoteBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <Text style={[styles.quoteLabel, { color: palette.textSecondary }]}>
-            경전 본문 ({item.edition.label})
+            {strings.study.bodyLabel} ({editionLabel})
           </Text>
           <Text style={[styles.quoteText, { color: palette.textPrimary }]}>
-            {item.segmentText?.text ?? '번역 준비 중'}
+            {item.segmentText?.text ?? strings.card.missingEditionText}
           </Text>
         </View>
 
@@ -234,7 +250,7 @@ export function StudyModal({
                   {original && (
                     <View style={[styles.block, { backgroundColor: palette.card, borderColor: palette.border }]}>
                       <Text style={[styles.blockTitle, { color: palette.primary }]}>
-                        원문 ({original.edition.label})
+                        {strings.study.originalTitle} ({getLocalizedEditionLabel(original.edition, appLanguage)})
                       </Text>
                       <Text style={[styles.blockBody, { color: palette.textPrimary, fontStyle: 'italic' }]}>
                         {original.segmentText.text}
@@ -249,30 +265,37 @@ export function StudyModal({
                   {relatedLinks.length === 0 ? (
                     <View style={[styles.emptyBox, { borderColor: palette.border }]}>
                       <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
-                        검수된 관련 경전이 아직 없습니다.
+                        {strings.study.emptyRelated}
                       </Text>
                     </View>
                   ) : (
-                    relatedLinks.map((link) => (
-                      <Pressable
-                        key={link.id}
-                        onPress={() => {
-                          onClose();
-                          onNavigateToSegment(link.toId);
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${link.targetTitle} 구절로 이동`}
-                        style={[styles.block, { backgroundColor: palette.card, borderColor: palette.border }]}
-                      >
-                        <Text style={[styles.linkBadge, { color: palette.accent }]}>
-                          {link.type === 'parallel_sutta' ? '평행경 (Parallel)' : '주제 유사 구절 (Thematic)'}
-                        </Text>
-                        <Text style={[styles.blockTitle, { color: palette.primary }]}>
-                          {link.targetTitle} ({link.targetRef}) →
-                        </Text>
-                        <Text style={[styles.blockBody, { color: palette.textSecondary }]}>{link.evidence}</Text>
-                      </Pressable>
-                    ))
+                    relatedLinks.map((link) => {
+                      const locLink = getLocalizedRelatedLink(link, appLanguage);
+                      return (
+                        <Pressable
+                          key={link.id}
+                          onPress={() => {
+                            onClose();
+                            onNavigateToSegment(link.toId);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={locLink.targetTitle}
+                          style={[styles.block, { backgroundColor: palette.card, borderColor: palette.border }]}
+                        >
+                          <Text style={[styles.linkBadge, { color: palette.accent }]}>
+                            {link.type === 'parallel_sutta'
+                              ? strings.study.parallelBadge
+                              : strings.study.thematicBadge}
+                          </Text>
+                          <Text style={[styles.blockTitle, { color: palette.primary }]}>
+                            {locLink.targetTitle} ({locLink.targetRef}) →
+                          </Text>
+                          <Text style={[styles.blockBody, { color: palette.textSecondary }]}>
+                            {locLink.evidence}
+                          </Text>
+                        </Pressable>
+                      );
+                    })
                   )}
                 </View>
               )}
@@ -286,7 +309,7 @@ export function StudyModal({
                   {!canProcessWithAI(item.rights) ? (
                     <View style={[styles.emptyBox, { borderColor: palette.border }]}>
                       <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
-                        이 판본은 저작권/라이선스 조건상 AI 처리를 지원하지 않습니다.
+                        {strings.study.aiRestricted}
                       </Text>
                     </View>
                   ) : (
@@ -294,7 +317,7 @@ export function StudyModal({
                       <TextInput
                         value={question}
                         onChangeText={setQuestion}
-                        placeholder="이 구절에 대해 궁금한 점을 입력하세요 (비워두면 요약 생성)"
+                        placeholder={strings.study.aiPlaceholder}
                         placeholderTextColor={palette.textSecondary}
                         maxLength={300}
                         style={[
@@ -309,20 +332,18 @@ export function StudyModal({
                       <Pressable
                         onPress={runAIStudy}
                         accessibilityRole="button"
-                        accessibilityLabel="근거 기반 AI 탐구 실행"
+                        accessibilityLabel={strings.study.aiRun}
                         style={[styles.primaryBtn, { backgroundColor: palette.primary }]}
                       >
                         <Text style={{ color: palette.textOnPrimary, fontWeight: '700' }}>
-                          {aiLoading ? '근거 확인 중...' : 'AI 심층 탐구 보기'}
+                          {aiLoading ? strings.study.aiRunning : strings.study.aiRun}
                         </Text>
                       </Pressable>
                       {aiError && <Text style={{ color: palette.danger, fontSize: 13 }}>{aiError}</Text>}
                       {aiResponse && (
                         <View style={[styles.block, { backgroundColor: palette.card, borderColor: palette.border }]}>
                           <Text style={[styles.linkBadge, { color: palette.accent }]}>
-                            {aiResponse.isMocked
-                              ? 'AI 보조 해설 · 개발용 모의 응답 (경전 원문이 아닙니다)'
-                              : 'AI 보조 해설 (경전 원문이 아닙니다)'}
+                            {aiResponse.isMocked ? strings.study.aiBadgeMock : strings.study.aiBadge}
                           </Text>
                           <Text style={[styles.blockBody, { color: palette.textPrimary }]}>{aiResponse.summary}</Text>
                           <Text style={[styles.blockBody, { color: palette.textSecondary }]}>{aiResponse.context}</Text>
@@ -336,10 +357,10 @@ export function StudyModal({
                             </View>
                           )}
                           <Text style={[styles.blockBody, { color: palette.primary }]}>
-                            실천: {aiResponse.practicalReflection}
+                            {strings.study.aiPracticePrefix}: {aiResponse.practicalReflection}
                           </Text>
                           <Text style={[styles.sourceLabel, { color: palette.textSecondary }]}>
-                            인용 근거: {aiResponse.citations.map((c) => `${c.sourceRef} (${c.editionId})`).join(', ')}
+                            {strings.study.aiCitationsPrefix}: {aiResponse.citations.map((c) => `${c.sourceRef} (${c.editionId})`).join(', ')}
                           </Text>
                           <Text style={[styles.uncertainty, { color: palette.textSecondary }]}>
                             {aiResponse.uncertainty}

@@ -9,6 +9,7 @@ import {
 } from '../domain/readingRules';
 import type {
   Annotation,
+  AppLanguage,
   AppSettings,
   Bookmark,
   ContentPack,
@@ -34,6 +35,7 @@ import { OPEN_CONTENT_PACK } from './openContentPack';
 const WEB_STORAGE_KEY = 'dharma_scroll_personal_v1';
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  appLanguage: 'ko',
   fontScaleLevel: 3,
   fontStyle: 'sans',
   themeMode: 'system',
@@ -180,6 +182,10 @@ export class InMemoryRepository implements AppRepository {
     return [...this.works];
   }
 
+  async getAllEditions(): Promise<Edition[]> {
+    return [...this.editions];
+  }
+
   async getWorkById(workId: string): Promise<Work | undefined> {
     return this.works.find((w) => w.id === workId);
   }
@@ -242,7 +248,7 @@ export class InMemoryRepository implements AppRepository {
     return filterApprovedRelatedLinks(filtered);
   }
 
-  async searchSegments(query: string, editionId?: string): Promise<SearchResultItem[]> {
+  async searchSegments(query: string, editionId?: string, langFilter?: AppLanguage): Promise<SearchResultItem[]> {
     const q = normalizeSearchQuery(query);
     if (!q) return [];
     const results: SearchResultItem[] = [];
@@ -253,17 +259,23 @@ export class InMemoryRepository implements AppRepository {
 
       const candidateEditions = editionId
         ? this.editions.filter((e) => e.id === editionId && e.workId === work.id)
-        : this.editions.filter((e) => e.workId === work.id && !e.isOriginal);
+        : langFilter
+          ? this.editions.filter((e) => e.workId === work.id && e.lang === langFilter)
+          : this.editions.filter((e) => e.workId === work.id && !e.isOriginal);
 
-      const targetEdition = candidateEditions[0] ?? this.editions.find((e) => e.workId === work.id);
+      const targetEdition = langFilter
+        ? candidateEditions[0]
+        : candidateEditions[0] ?? this.editions.find((e) => e.workId === work.id);
       if (!targetEdition) continue;
 
       const st = await this.getSegmentText(seg.id, targetEdition.id);
       if (!st) continue;
 
       const textNorm = normalizeSearchQuery(st.text);
-      const refNorm = normalizeSearchQuery(seg.sourceRef);
-      const titleNorm = normalizeSearchQuery(work.title);
+      const refStr = langFilter === 'en' ? (seg.sourceRefEn ?? seg.sourceRef) : seg.sourceRef;
+      const titleStr = langFilter === 'en' ? (work.titleEn ?? work.title) : work.title;
+      const refNorm = normalizeSearchQuery(refStr);
+      const titleNorm = normalizeSearchQuery(titleStr);
 
       if (textNorm.includes(q)) {
         results.push({ segment: seg, work, edition: targetEdition, segmentText: st, matchedField: 'text' });
