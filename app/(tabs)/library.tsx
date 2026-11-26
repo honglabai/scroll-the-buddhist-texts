@@ -68,7 +68,7 @@ export default function LibraryScreen() {
           <TextInput
             value={query}
             onChangeText={handleSearch}
-            placeholder="경전명, 구절 번호, 한국어 본문 검색"
+            placeholder="경전명, 구절 번호, 한국어·영어 본문 검색"
             placeholderTextColor={palette.textSecondary}
             accessibilityLabel="경전 검색 입력"
             style={[styles.searchInput, { color: palette.textPrimary }]}
@@ -158,7 +158,14 @@ export default function LibraryScreen() {
                     </Text>
                   )}
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={palette.primary} />
+                <View style={styles.countBadgeRow}>
+                  <View style={[styles.countBadge, { borderColor: palette.border, backgroundColor: palette.background }]}>
+                    <Text style={{ color: palette.accent, fontSize: 11, fontWeight: '700' }}>
+                      {work.totalSegments}구절
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={palette.primary} />
+                </View>
               </View>
               {work.description && (
                 <Text style={{ color: palette.textPrimary, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
@@ -197,6 +204,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: { padding: 16, borderRadius: 16, borderWidth: 1 },
-  workRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  workRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  countBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   emptyBox: { padding: 24, borderRadius: 14, borderWidth: 1, alignItems: 'center' },
 });

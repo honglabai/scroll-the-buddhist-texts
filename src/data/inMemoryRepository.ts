@@ -29,7 +29,7 @@ import type {
   Work,
 } from '../domain/types';
 import type { AppRepository, PersonalDataBackup, SearchResultItem } from './repository';
-import { SYNTHETIC_SEED_PACK } from './seedContent';
+import { OPEN_CONTENT_PACK } from './openContentPack';
 
 const WEB_STORAGE_KEY = 'dharma_scroll_personal_v1';
 
@@ -41,9 +41,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   reduceMotion: false,
   ttsRate: 0.95,
   selectedEditionByWork: {
-    'work-dhp': 'ed-dhp-ko-synth',
-    'work-metta': 'ed-metta-ko-synth',
-    'work-heart': 'ed-heart-ko-synth',
+    'work-diamond': 'ed-diamond-ko-ws',
+    'work-heart': 'ed-heart-ko-ws',
+    'work-cheonsu': 'ed-cheonsu-ko-ws',
+    'work-dhp': 'ed-dhp-en-sujato',
+    'work-kp': 'ed-work-kp-en-sujato',
+    'work-sn56-11': 'ed-work-sn56-11-en-sujato',
+    'work-snp': 'ed-work-snp-en-sujato',
+    'work-iti': 'ed-work-iti-en-sujato',
+    'work-ud': 'ed-work-ud-en-sujato',
   },
 };
 
@@ -73,7 +79,7 @@ export class InMemoryRepository implements AppRepository {
     this.allowSyntheticInDev = options.allowSyntheticInDev ?? true;
   }
 
-  async initialize(pack: ContentPack = SYNTHETIC_SEED_PACK): Promise<void> {
+  async initialize(pack: ContentPack = OPEN_CONTENT_PACK): Promise<void> {
     this.loadPublicPack(pack);
     this.loadPersonalFromWebStorage();
   }

@@ -19,3 +19,5 @@
 - 홈 상단 연꽃 배지·설정 바로가기, 웹 키보드 상하 이동(`ArrowUp`/`ArrowDown`), `app/+html.tsx`(`lang="ko"`), `vercel.json` 및 `build:web` 스크립트 추가.
 - Vercel SPA 하위 경로(`/library`, `/practice`, `/saved`, `/my`) 새로고침 404 방지를 위해 `vercel.json` rewrite 규칙(`/(.*) -> /index.html`) 및 HTML 캐시 헤더 보완.
 - 풀스크린 세로 스크롤 레이아웃 개편: 상단 플로팅 투명 내비게이션(순차/주제/판본 + 검색), 좌하단 경전·해설/원문 링크 오버레이, 우측 액션 레일(경전 배지/원문 토글, 찜, 해설, 기록, 전달, 바이럴 카드, 낭독 디스크) 및 SNS 공유용 `ViralShareModal`(PNG 카드 저장/문구 복사/전달) 추가, 하단 5탭 중앙 수행 강조 바 적용.
+- 무료/오픈 라이선스 경전 대폭 확충(`scripts/import-open-scriptures.ts`, `assets/content/open-scriptures.json`): 9개 문헌·18개 판본·775개 구절·1,550개 본문 수록(금강경 32분 완역·반야심경·천수경 한국어+한문, 법구경 423게송 완역·소송경 9편·초전법륜경·숫타니파타 73경·여시어경 112경·우다나 80경 팔리어+CC0 영어) 및 `--production` 빌드 검증 100% 통과.
+- 주소창/브라우저 메뉴 없는 전체화면 앱 실행 지원: PWA 매니페스트(`public/manifest.webmanifest` `display: standalone`), 서비스 워커(`public/sw.js`), iOS/Android `apple-mobile-web-app-capable`/`viewport-fit=cover` 메타태그 및 `100dvh` 처리(`scripts/prepare-web-pwa.ts`), 웹 전체화면 토글 및 네이티브 translucent status bar 설정.

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -45,6 +45,32 @@ export default function MyScreen() {
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
   const [restoreJson, setRestoreJson] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      Boolean((window.navigator as { standalone?: boolean }).standalone);
+    Promise.resolve().then(() => setIsStandalone(standalone));
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as unknown as { prompt: () => Promise<void> });
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      setDeferredPrompt(null);
+      return;
+    }
+    setStatusMessage('모바일 브라우저 메뉴에서 "홈 화면에 추가" 또는 "앱 설치"를 누르면 주소창 없이 전체화면으로 실행됩니다.');
+  };
 
   const handleExport = async () => {
     const backup = await exportBackup();
@@ -109,6 +135,31 @@ export default function MyScreen() {
             <Pressable onPress={() => setStatusMessage(null)}>
               <Ionicons name="close" size={18} color={palette.textPrimary} />
             </Pressable>
+          </View>
+        )}
+
+        {/* PWA Fullscreen Install Status (Web) */}
+        {Platform.OS === 'web' && (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.cardTitle, { color: palette.primary }]}>
+              전체화면 앱 실행 (주소창 제거)
+            </Text>
+            {isStandalone ? (
+              <Text style={{ color: palette.primary, fontSize: 13, fontWeight: '600' }}>
+                ✓ 현재 주소창 없는 전체화면 앱(Standalone) 모드로 실행 중입니다.
+              </Text>
+            ) : (
+              <>
+                <Text style={{ color: palette.textSecondary, fontSize: 13, lineHeight: 19 }}>
+                  iOS Safari(공유 → 홈 화면에 추가) 또는 Android Chrome(앱 설치)으로 추가하면 상단 주소창과 브라우저 메뉴 없이 전체화면으로 실행됩니다.
+                </Text>
+                <Pressable onPress={handleInstallApp} style={[styles.actionBtn, { borderColor: palette.primary }]}>
+                  <Text style={{ color: palette.primary, fontWeight: '700' }}>
+                    {deferredPrompt ? '홈 화면에 앱 설치하기' : '전체화면 앱 설치 안내 보기'}
+                  </Text>
+                </Pressable>
+              </>
+            )}
           </View>
         )}
 

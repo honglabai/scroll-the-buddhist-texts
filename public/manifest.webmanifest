@@ -1,0 +1,27 @@
+{
+  "name": "마음스크롤 · Dharma Scroll",
+  "short_name": "마음스크롤",
+  "description": "스크롤할수록 마음이 맑아지는 시간. 광고와 로그인 없이 한 구절씩 읽고 사유하는 불교 경전 앱",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#151F1B",
+  "theme_color": "#151F1B",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

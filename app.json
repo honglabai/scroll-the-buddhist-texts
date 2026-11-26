@@ -11,6 +11,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.honglabai.dharmascroll"
     },
+    "androidStatusBar": {
+      "translucent": true,
+      "barStyle": "light-content"
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#0D1310",
+      "barStyle": "light-content"
+    },
     "android": {
       "package": "com.honglabai.dharmascroll",
       "allowBackup": false,

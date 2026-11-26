@@ -26,8 +26,8 @@ import type {
   Work,
 } from '../domain/types';
 import { DEFAULT_SETTINGS } from './inMemoryRepository';
+import { OPEN_CONTENT_PACK } from './openContentPack';
 import type { AppRepository, PersonalDataBackup, SearchResultItem } from './repository';
-import { SYNTHETIC_SEED_PACK } from './seedContent';
 
 /**
  * Native SQLite Repository:
@@ -43,13 +43,19 @@ export class SqliteRepository implements AppRepository {
     this.allowSyntheticInDev = options.allowSyntheticInDev ?? true;
   }
 
-  async initialize(pack: ContentPack = SYNTHETIC_SEED_PACK): Promise<void> {
+  async initialize(pack: ContentPack = OPEN_CONTENT_PACK): Promise<void> {
     this.publicDb = await SQLite.openDatabaseAsync('scripture_public.db');
     this.privateDb = await SQLite.openDatabaseAsync('personal_private.db');
 
     await this.migratePublicDb(this.publicDb);
     await this.migratePrivateDb(this.privateDb);
-    await this.upgradeContentPack(pack);
+
+    const existingVer = await this.publicDb.getFirstAsync<{ value: string }>(
+      "SELECT value FROM pack_meta WHERE key = 'content_pack_version'"
+    );
+    if (existingVer?.value !== pack.manifest.version) {
+      await this.upgradeContentPack(pack);
+    }
   }
 
   private async migratePublicDb(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -158,6 +164,10 @@ export class SqliteRepository implements AppRepository {
           plan_id TEXT NOT NULL,
           day_number INTEGER NOT NULL,
           segment_ids_json TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pack_meta (
+          key TEXT PRIMARY KEY NOT NULL,
+          value TEXT NOT NULL
         );
         PRAGMA user_version = 1;
       `);
@@ -404,6 +414,12 @@ export class SqliteRepository implements AppRepository {
           JSON.stringify(item.segmentIds)
         );
       }
+
+      await pub.runAsync(
+        `INSERT INTO pack_meta (key, value) VALUES ('content_pack_version', ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+        pack.manifest.version
+      );
     });
 
     // Preserve and remap reading_progress via segment_alignment if needed

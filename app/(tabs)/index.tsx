@@ -60,6 +60,37 @@ export default function HomeScreen() {
   const [noteItem, setNoteItem] = useState<FeedItem | null>(null);
   const [viralItem, setViralItem] = useState<FeedItem | null>(null);
   const [noticeBanner, setNoticeBanner] = useState<string | null>(null);
+  const [isWebFullscreen, setIsWebFullscreen] = useState(false);
+  const [isStandalonePwa, setIsStandalonePwa] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      Boolean((window.navigator as { standalone?: boolean }).standalone);
+    const onFsChange = () => {
+      setIsWebFullscreen(Boolean(document.fullscreenElement));
+    };
+    Promise.resolve().then(() => {
+      setIsStandalonePwa(standalone);
+      setIsWebFullscreen(Boolean(document.fullscreenElement));
+    });
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  const toggleWebFullscreen = async () => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      setNoticeBanner('브라우저에서 홈 화면에 추가(앱 설치)하시면 주소창 없이 전체화면으로 실행됩니다.');
+    }
+  };
 
   const flatListRef = useRef<FlatList<FeedItem>>(null);
   const bookmarkedIds = useMemo(() => new Set(bookmarks.map((b) => b.segmentId)), [bookmarks]);
@@ -238,14 +269,30 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={() => router.push('/(tabs)/library')}
-            accessibilityRole="button"
-            accessibilityLabel="경전 검색으로 이동"
-            style={styles.topIconBtn}
-          >
-            <Ionicons name="search-outline" size={22} color={topOverlayText} />
-          </Pressable>
+          <View style={styles.topRightIcons}>
+            {Platform.OS === 'web' && !isStandalonePwa && (
+              <Pressable
+                onPress={toggleWebFullscreen}
+                accessibilityRole="button"
+                accessibilityLabel={isWebFullscreen ? '전체 화면 종료' : '주소창 없이 전체 화면'}
+                style={styles.topIconBtn}
+              >
+                <Ionicons
+                  name={isWebFullscreen ? 'contract-outline' : 'expand-outline'}
+                  size={20}
+                  color={topOverlayText}
+                />
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => router.push('/(tabs)/library')}
+              accessibilityRole="button"
+              accessibilityLabel="경전 검색으로 이동"
+              style={styles.topIconBtn}
+            >
+              <Ionicons name="search-outline" size={22} color={topOverlayText} />
+            </Pressable>
+          </View>
         </View>
 
         {noticeBanner && (
@@ -503,10 +550,14 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   topIconBtn: {
-    width: 44,
+    width: 40,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topRightIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   topTabsRow: {
     flexDirection: 'row',

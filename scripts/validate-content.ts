@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ContentPack, RightsManifest } from '../src/domain/types';
 import { isRightsApprovedForDistribution, normalizeNfc } from '../src/domain/readingRules';
-import { SYNTHETIC_SEED_PACK } from '../src/data/seedContent';
+import { OPEN_CONTENT_PACK } from '../src/data/openContentPack';
 
 export interface ValidationResult {
   valid: boolean;
@@ -123,7 +123,7 @@ export function validateContentPack(
 
 if (require.main === module) {
   const productionMode = process.argv.includes('--production');
-  const result = validateContentPack(SYNTHETIC_SEED_PACK, { productionMode });
+  const result = validateContentPack(OPEN_CONTENT_PACK, { productionMode });
   console.log('Content Validation Result:', JSON.stringify(result, null, 2));
   if (!result.valid) {
     process.exit(1);

@@ -39,7 +39,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "npx expo export --platform web",
+    "build:web": "npx expo export --platform web && tsx scripts/prepare-web-pwa.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "validate:content": "tsx scripts/validate-content.ts",
