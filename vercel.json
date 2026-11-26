@@ -42,6 +42,9 @@
     }
   ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/((?!sw\\.js|manifest\\.webmanifest|icon-|apple-touch-icon|favicon\\.ico|assets|_expo|\\.well-known).*)",
+      "destination": "/index.html"
+    }
   ]
 }

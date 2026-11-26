@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dharma-scroll-shell-v2';
+const CACHE_NAME = 'dharma-scroll-shell-v3';
 const SHELL_URLS = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -36,6 +36,10 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+      .catch(() =>
+        caches
+          .match(event.request, { ignoreSearch: true })
+          .then((cached) => cached || caches.match('/'))
+      )
   );
 });

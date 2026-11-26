@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -30,6 +30,9 @@ export default function MyScreen() {
     bookmarks,
     notes,
     rightsEntries,
+    canInstallPwa,
+    isStandalonePwa,
+    promptPwaInstall,
     setAppLanguage,
     updateFontScale,
     updateFontStyle,
@@ -48,32 +51,12 @@ export default function MyScreen() {
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
   const [restoreJson, setRestoreJson] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    const standalone =
-      window.matchMedia?.('(display-mode: standalone)').matches ||
-      window.matchMedia?.('(display-mode: fullscreen)').matches ||
-      Boolean((window.navigator as { standalone?: boolean }).standalone);
-    Promise.resolve().then(() => setIsStandalone(standalone));
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as unknown as { prompt: () => Promise<void> });
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
 
   const handleInstallApp = async () => {
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      setDeferredPrompt(null);
-      return;
+    const triggered = await promptPwaInstall();
+    if (!triggered) {
+      setStatusMessage(strings.my.pwaToast);
     }
-    setStatusMessage(strings.my.pwaToast);
   };
 
   const handleExport = async () => {
@@ -178,7 +161,7 @@ export default function MyScreen() {
         {Platform.OS === 'web' && (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.cardTitle, { color: palette.primary }]}>{strings.my.pwaTitle}</Text>
-            {isStandalone ? (
+            {isStandalonePwa ? (
               <Text style={{ color: palette.primary, fontSize: 13, fontWeight: '600' }}>
                 {strings.my.pwaActive}
               </Text>
@@ -189,7 +172,7 @@ export default function MyScreen() {
                 </Text>
                 <Pressable onPress={handleInstallApp} style={[styles.actionBtn, { borderColor: palette.primary }]}>
                   <Text style={{ color: palette.primary, fontWeight: '700' }}>
-                    {deferredPrompt ? strings.my.pwaInstallBtn : strings.my.pwaGuideBtn}
+                    {canInstallPwa ? strings.my.pwaInstallBtn : strings.my.pwaGuideBtn}
                   </Text>
                 </Pressable>
               </>

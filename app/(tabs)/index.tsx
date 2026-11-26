@@ -50,6 +50,9 @@ export default function HomeScreen() {
     bookmarks,
     notes,
     ttsActiveSegmentId,
+    canInstallPwa,
+    isStandalonePwa,
+    promptPwaInstall,
     selectWorkAndSegment,
     navigateToSegmentById,
     selectTopicFeed,
@@ -69,20 +72,15 @@ export default function HomeScreen() {
   const [noteItem, setNoteItem] = useState<FeedItem | null>(null);
   const [viralItem, setViralItem] = useState<FeedItem | null>(null);
   const [noticeBanner, setNoticeBanner] = useState<string | null>(null);
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
   const [isWebFullscreen, setIsWebFullscreen] = useState(false);
-  const [isStandalonePwa, setIsStandalonePwa] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    const standalone =
-      window.matchMedia?.('(display-mode: standalone)').matches ||
-      window.matchMedia?.('(display-mode: fullscreen)').matches ||
-      Boolean((window.navigator as { standalone?: boolean }).standalone);
     const onFsChange = () => {
       setIsWebFullscreen(Boolean(document.fullscreenElement));
     };
     Promise.resolve().then(() => {
-      setIsStandalonePwa(standalone);
       setIsWebFullscreen(Boolean(document.fullscreenElement));
     });
     document.addEventListener('fullscreenchange', onFsChange);
@@ -208,6 +206,8 @@ export default function HomeScreen() {
   const topOverlayMuted = isDark ? 'rgba(242,239,230,0.65)' : 'rgba(36,59,48,0.58)';
   const currentWorkTitle = currentWork ? getLocalizedWorkTitle(currentWork, appLanguage) : '';
   const activeTopicDisplay = activeTopic ? getLocalizedTopicLabel(activeTopic, appLanguage) : null;
+  const showInstallBanner =
+    !noticeBanner && Platform.OS === 'web' && canInstallPwa && !isStandalonePwa && !installBannerDismissed;
 
   return (
     <View style={[styles.screenOuter, { backgroundColor: outerBackdrop }]}>
@@ -336,6 +336,41 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {showInstallBanner && (
+          <View
+            style={[
+              styles.floatingBanner,
+              {
+                top: Math.max(insets.top, 10) + 48,
+                backgroundColor: isDark ? 'rgba(28,43,36,0.94)' : 'rgba(255,253,247,0.96)',
+                borderWidth: 1,
+                borderColor: '#C5A26A',
+              },
+            ]}
+          >
+            <Pressable
+              onPress={() => {
+                promptPwaInstall();
+              }}
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            >
+              <Ionicons name="download-outline" size={16} color={palette.accent} />
+              <Text style={{ color: palette.textPrimary, fontSize: 12, fontWeight: '700', flex: 1 }}>
+                {appLanguage === 'en'
+                  ? 'Install App (Open without URL bar)'
+                  : '앱으로 설치하기 (상단 주소바 없이 실행)'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setInstallBannerDismissed(true)}
+              accessibilityLabel="Close"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={16} color={palette.textSecondary} />
+            </Pressable>
+          </View>
+        )}
+
         {/* Full-Screen Vertical Snap Feed */}
         {feedItems.length === 0 ? (
           <View style={[styles.center, { backgroundColor: palette.background }]}>
@@ -392,6 +427,7 @@ export default function HomeScreen() {
                 total={feedItems.length}
                 cardHeight={feedHeight}
                 topInset={Math.max(insets.top, 10)}
+                extraTopOffset={showInstallBanner ? 44 : 0}
                 palette={palette}
                 appLanguage={appLanguage}
                 fontScaleLevel={settings.fontScaleLevel}
@@ -586,12 +622,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingBottom: 8,
   },
   topIconBtn: {
-    width: 40,
-    height: 44,
+    width: 34,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -599,9 +635,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
+    flexShrink: 0,
   },
   langTogglePill: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 10,
     borderWidth: 1,
@@ -616,18 +653,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   topTabsRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
+    justifyContent: 'center',
+    gap: 10,
+    marginHorizontal: 4,
   },
   topTabBtn: {
     minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
   },
   topTabText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   topUnderline: {

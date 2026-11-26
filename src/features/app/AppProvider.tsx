@@ -74,6 +74,9 @@ interface AppContextValue {
   rightsEntries: RightsManifestEntry[];
   readEventsCount: number;
   ttsActiveSegmentId: string | null;
+  canInstallPwa: boolean;
+  isStandalonePwa: boolean;
+  promptPwaInstall: () => Promise<boolean>;
 
   selectWorkAndSegment: (workId: string, segmentId?: string, mode?: ReadingMode) => Promise<void>;
   navigateToSegmentById: (segmentId: string) => Promise<boolean>;
@@ -152,8 +155,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [rightsEntries, setRightsEntries] = useState<RightsManifestEntry[]>([]);
   const [readEventsCount, setReadEventsCount] = useState(0);
   const [ttsActiveSegmentId, setTtsActiveSegmentId] = useState<string | null>(null);
+  const [canInstallPwa, setCanInstallPwa] = useState(false);
+  const [isStandalonePwa, setIsStandalonePwa] = useState(false);
 
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const win = window as unknown as {
+      __dharmaDeferredPrompt?: { prompt: () => Promise<void>; userChoice?: Promise<{ outcome: string }> } | null;
+    };
+    const checkStandalone = () =>
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      window.matchMedia?.('(display-mode: fullscreen)').matches ||
+      Boolean((window.navigator as { standalone?: boolean }).standalone);
+
+    const syncInstallState = () => {
+      setIsStandalonePwa(checkStandalone());
+      setCanInstallPwa(Boolean(win.__dharmaDeferredPrompt));
+    };
+
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      win.__dharmaDeferredPrompt = e as unknown as {
+        prompt: () => Promise<void>;
+        userChoice?: Promise<{ outcome: string }>;
+      };
+      setCanInstallPwa(true);
+    };
+    const onAppInstalled = () => {
+      win.__dharmaDeferredPrompt = null;
+      setCanInstallPwa(false);
+      setIsStandalonePwa(true);
+    };
+
+    Promise.resolve().then(syncInstallState);
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('dharma-install-ready', syncInstallState);
+    window.addEventListener('dharma-app-installed', onAppInstalled);
+    window.addEventListener('appinstalled', onAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('dharma-install-ready', syncInstallState);
+      window.removeEventListener('dharma-app-installed', onAppInstalled);
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
+  }, []);
+
+  const promptPwaInstall = useCallback(async (): Promise<boolean> => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
+    const win = window as unknown as {
+      __dharmaDeferredPrompt?: { prompt: () => Promise<void>; userChoice?: Promise<{ outcome: string }> } | null;
+    };
+    const promptEvent = win.__dharmaDeferredPrompt;
+    if (!promptEvent) return false;
+    await promptEvent.prompt();
+    win.__dharmaDeferredPrompt = null;
+    setCanInstallPwa(false);
+    return true;
+  }, []);
 
   const appLanguage: AppLanguage = settings.appLanguage === 'en' ? 'en' : 'ko';
   const strings = useMemo(() => getStrings(appLanguage), [appLanguage]);
@@ -898,6 +958,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     rightsEntries,
     readEventsCount,
     ttsActiveSegmentId,
+    canInstallPwa,
+    isStandalonePwa,
+    promptPwaInstall,
     selectWorkAndSegment,
     navigateToSegmentById,
     getSegmentSummary,

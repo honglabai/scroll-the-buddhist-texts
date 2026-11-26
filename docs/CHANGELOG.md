@@ -25,3 +25,4 @@
   - `public/manifest.webmanifest` `id`/`start_url`/`scope`를 `/`로 통일하고 `display: "fullscreen"` 및 `display_override: ["fullscreen", "standalone"]` 적용, `any`/`maskable` 아이콘 분리, `app/+html.tsx`에 매니페스트·전체화면 메타태그 직접 삽입 및 `vercel.json` 매니페스트 `Cache-Control: max-age=0, must-revalidate` 보완 (`dharma-scroll-shell-v2`).
   - `VerseCard` 우측 액션 레일에 상단 바 높이 기준 여백(`top: topInset + 56`)과 컴팩트 반응형 축소 레이아웃을 적용해 작은 화면에서도 상단 검색 아이콘과 겹치지 않도록 개선.
   - 영어 위키문헌 퍼블릭 도메인(CC0/PD-author-release) 금강경 32분 및 반야심경 영어 판본 추가(`20개 판본 · 1,591개 본문`), 전 화면·탭·모달·검색·읽기 계획·해설·공유·TTS에 한국어(`ko`) / 영어(`en`) 일관 전환 적용.
+  - Android WebAPK(`"display": "standalone"`, `vercel.json` 정적 PWA 경로 rewrite 제외, `sw.js` `v3`, `<head>` 레벨 `beforeinstallprompt` 전역 캡처 및 1탭 `앱으로 설치하기` 배너)와 `360px` 상단/하단 여백 보완 완료.

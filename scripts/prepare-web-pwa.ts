@@ -52,9 +52,19 @@ const pwaHeadTags = `
 
 const swRegisterScript = `
   <script>
+    window.__dharmaDeferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.__dharmaDeferredPrompt = e;
+      window.dispatchEvent(new Event('dharma-install-ready'));
+    });
+    window.addEventListener('appinstalled', function () {
+      window.__dharmaDeferredPrompt = null;
+      window.dispatchEvent(new Event('dharma-app-installed'));
+    });
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js').catch(function () {});
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
       });
     }
   </script>

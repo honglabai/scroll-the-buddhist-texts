@@ -27,6 +27,7 @@ interface VerseCardProps {
   total: number;
   cardHeight: number;
   topInset: number;
+  extraTopOffset?: number;
   palette: ThemePalette;
   appLanguage?: AppLanguage;
   fontScaleLevel: FontScaleLevel;
@@ -53,6 +54,7 @@ export function VerseCard({
   total,
   cardHeight,
   topInset,
+  extraTopOffset = 0,
   palette,
   appLanguage = 'ko',
   fontScaleLevel,
@@ -114,7 +116,7 @@ export function VerseCard({
   const railLabelColor = isDark ? '#DCE3DC' : '#314C40';
 
   // Ensure rightRail never collides with floatingTopBar on compact screens
-  const topClearance = topInset + 56;
+  const topClearance = topInset + 56 + extraTopOffset;
   const availRailHeight = Math.max(260, cardHeight - topClearance - 12);
   const isCompactRail = availRailHeight < 460;
   const railGap = isCompactRail ? 4 : 10;
@@ -135,8 +137,8 @@ export function VerseCard({
         style={[
           styles.centerStage,
           {
-            paddingTop: topInset + (isCompactRail ? 52 : 64),
-            paddingBottom: isCompactRail ? 112 : 128,
+            paddingTop: topInset + (isCompactRail ? 52 : 64) + extraTopOffset,
+            paddingBottom: isCompactRail ? 144 : 158,
           },
         ]}
       >
