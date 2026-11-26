@@ -112,6 +112,7 @@ export interface Annotation {
   source: string;
   sourceEn?: string;
   uncertaintyNote?: string;
+  uncertaintyNoteEn?: string;
   reviewStatus: ReviewStatus;
 }
 
@@ -205,7 +206,11 @@ export type ArtworkPresetId =
   | 'geumgang-peaks'
   | 'autumn-temple'
   | 'monk-halo'
-  | 'evening-bell';
+  | 'evening-bell'
+  | 'bd-candle'
+  | 'bd-buddha'
+  | 'bd-moon'
+  | 'bd-river';
 
 export interface AppSettings {
   appLanguage: AppLanguage;

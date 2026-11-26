@@ -1,22 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, useSegments } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useApp } from '../../src/features/app/AppProvider';
 
 export default function TabLayout() {
   const { palette, strings } = useApp();
-  const isDark = palette.mode === 'dark';
+  const segments = useSegments();
+  const onScrollTab = segments[segments.length - 1] === 'scroll';
+  const isDark = palette.mode === 'dark' || onScrollTab;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: palette.coral,
-        tabBarInactiveTintColor: isDark ? '#8B8E87' : '#7A766E',
+        tabBarInactiveTintColor: isDark ? '#97A39B' : '#7A766E',
         tabBarStyle: {
-          backgroundColor: isDark ? '#191D1A' : '#FAF8F4',
-          borderTopColor: isDark ? '#272D29' : '#EAE4D9',
+          backgroundColor: onScrollTab ? '#0F1A15' : isDark ? '#191D1A' : '#FAF8F4',
+          borderTopColor: onScrollTab ? 'rgba(255,255,255,0.08)' : isDark ? '#272D29' : '#EAE4D9',
           height: 68,
           paddingBottom: 8,
           paddingTop: 6,

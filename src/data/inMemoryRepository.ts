@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   reduceMotion: false,
   ttsRate: 0.95,
   selectedEditionByWork: {
+    'work-bulgyodaejeon': 'ed-bulgyodaejeon-ko',
     'work-diamond': 'ed-diamond-ko-ws',
     'work-heart': 'ed-heart-ko-ws',
     'work-cheonsu': 'ed-cheonsu-ko-ws',

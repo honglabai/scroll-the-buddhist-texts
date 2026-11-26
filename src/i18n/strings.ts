@@ -271,6 +271,18 @@ export interface AppStrings {
     presetNames: Record<ArtworkPresetId, string>;
     pageNames: Record<PageArtworkKey, string>;
   };
+  shortCard: {
+    like: string;
+    note: string;
+    listen: string;
+    study: string;
+    share: string;
+    fullTranslation: string;
+    hideFullTranslation: string;
+    originalLabel: string;
+    swipeNextHint: string;
+    draftBadge: string;
+  };
   topics: Record<string, string>;
 }
 
@@ -542,6 +554,10 @@ const KO_STRINGS: AppStrings = {
       'autumn-temple': '안견 · 동정추월 산사',
       'monk-halo': '김홍도 · 연꽃 위 참선',
       'evening-bell': '안견 · 저녁 종소리 산사',
+      'bd-candle': '어둠 밝히는 지혜의 촛불',
+      'bd-buddha': '햇살 속 참선 부처님',
+      'bd-moon': '호수에 비친 고요한 달빛',
+      'bd-river': '안개 낀 산수와 강물',
     },
     pageNames: {
       today: '오늘',
@@ -551,6 +567,18 @@ const KO_STRINGS: AppStrings = {
       saved: '저장함',
       my: '내 정보',
     },
+  },
+  shortCard: {
+    like: '찜',
+    note: '기록',
+    listen: '낭독',
+    study: '원문',
+    share: '공유',
+    fullTranslation: '전체 번역 보기',
+    hideFullTranslation: '짧은 말씀으로',
+    originalLabel: '1914 원문 보기',
+    swipeNextHint: '위로 스와이프 · 다음 말씀',
+    draftBadge: '1914 원문 기반 의역',
   },
   topics: {
     마음: '마음',
@@ -567,6 +595,45 @@ const KO_STRINGS: AppStrings = {
     깨달음: '깨달음',
     수행: '수행',
     '잠들기 전': '잠들기 전',
+    불교대전: '불교대전',
+    마음공부: '마음공부',
+    평온: '평온',
+    청정: '청정',
+    선행: '선행',
+    불성: '불성',
+    배움: '배움',
+    실천: '실천',
+    '배움과 실천': '배움과 실천',
+    참선: '참선',
+    가르침: '가르침',
+    고통: '고통',
+    갈등: '갈등',
+    집착: '집착',
+    무상: '무상',
+    삶과죽음: '삶과 죽음',
+    번뇌: '번뇌',
+    믿음: '믿음',
+    정진: '정진',
+    발심: '발심',
+    참회: '참회',
+    신앙: '신앙',
+    평화: '평화',
+    공존: '공존',
+    성장: '성장',
+    분별: '분별',
+    계정혜: '계·정·혜',
+    진리: '진리',
+    성찰: '성찰',
+    인과: '인과',
+    일상: '일상',
+    평등: '평등',
+    포용: '포용',
+    바른길: '바른길',
+    용서: '용서',
+    현재: '현재',
+    공: '공(空)',
+    해탈: '해탈',
+    진여: '진여',
   },
 };
 
@@ -838,6 +905,10 @@ const EN_STRINGS: AppStrings = {
       'autumn-temple': 'An Gyeon · Autumn Mist Temple',
       'monk-halo': 'Kim Hong-do · Halo on Lotus Cloud',
       'evening-bell': 'An Gyeon · Evening Temple Bell',
+      'bd-candle': 'Warm Candle of Wisdom',
+      'bd-buddha': 'Sunlit Meditating Buddha',
+      'bd-moon': 'Moonlight Over Still Water',
+      'bd-river': 'Misty Peaks & Still River',
     },
     pageNames: {
       today: 'Today',
@@ -847,6 +918,18 @@ const EN_STRINGS: AppStrings = {
       saved: 'Saved',
       my: 'My',
     },
+  },
+  shortCard: {
+    like: 'Like',
+    note: 'Note',
+    listen: 'Listen',
+    study: 'Study',
+    share: 'Share',
+    fullTranslation: 'Full Translation',
+    hideFullTranslation: 'Short Quote',
+    originalLabel: '1914 Original Text',
+    swipeNextHint: 'Swipe up for next passage',
+    draftBadge: '1914 Canon Draft',
   },
   topics: {
     마음: 'Mind',
@@ -863,6 +946,45 @@ const EN_STRINGS: AppStrings = {
     깨달음: 'Awakening',
     수행: 'Practice',
     '잠들기 전': 'Before Sleep',
+    불교대전: 'Bulgyodaejeon',
+    마음공부: 'Mind Cultivation',
+    평온: 'Serenity',
+    청정: 'Purity',
+    선행: 'Wholesome Deeds',
+    불성: 'Buddha-Nature',
+    배움: 'Learning & Study',
+    실천: 'Living Practice',
+    '배움과 실천': 'Study & Practice',
+    참선: 'Seon Meditation',
+    가르침: 'Dharma Teaching',
+    고통: 'Suffering',
+    갈등: 'Conflict',
+    집착: 'Attachment',
+    무상: 'Impermanence',
+    삶과죽음: 'Life & Death',
+    번뇌: 'Afflictions',
+    믿음: 'Confidence',
+    정진: 'Diligence',
+    발심: 'Aspiration',
+    참회: 'Reflection',
+    신앙: 'Faith & Trust',
+    평화: 'Peace',
+    공존: 'Coexistence',
+    성장: 'Growth',
+    분별: 'Discernment',
+    계정혜: 'Precepts · Stillness · Wisdom',
+    진리: 'Truth',
+    성찰: 'Contemplation',
+    인과: 'Cause & Effect',
+    일상: 'Everyday Life',
+    평등: 'Equality',
+    포용: 'Embrace',
+    바른길: 'Right Path',
+    용서: 'Forgiveness',
+    현재: 'Present Moment',
+    공: 'Emptiness',
+    해탈: 'Liberation',
+    진여: 'Suchness',
   },
 };
 
@@ -902,15 +1024,31 @@ export function getLocalizedPlanDesc(plan: ReadingPlan, lang: AppLanguage): stri
   return lang === 'en' && plan.descriptionEn ? plan.descriptionEn : plan.description;
 }
 
-export function getLocalizedAnnotation(ann: Annotation, lang: AppLanguage): { title?: string; body: string; source: string } {
+export function getLocalizedAnnotation(
+  ann: Annotation,
+  lang: AppLanguage
+): { title?: string; body: string; source: string; uncertaintyNote?: string } {
   if (lang === 'en') {
+    const enNote =
+      ann.uncertaintyNoteEn ??
+      (ann.id.startsWith('ann-bd-')
+        ? 'Draft rendered from the 1914 Han Yong-un edition without copying modern translations.'
+        : ann.uncertaintyNote && !/[\uAC00-\uD7A3]/.test(ann.uncertaintyNote)
+          ? ann.uncertaintyNote
+          : undefined);
     return {
       title: ann.titleEn ?? ann.title,
       body: ann.bodyEn ?? ann.body,
       source: ann.sourceEn ?? ann.source,
+      uncertaintyNote: enNote,
     };
   }
-  return { title: ann.title, body: ann.body, source: ann.source };
+  return {
+    title: ann.title,
+    body: ann.body,
+    source: ann.source,
+    uncertaintyNote: ann.uncertaintyNote,
+  };
 }
 
 export function getLocalizedRelatedLink(link: RelatedLink, lang: AppLanguage): { targetTitle: string; targetRef: string; evidence: string } {

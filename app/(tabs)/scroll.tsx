@@ -168,8 +168,8 @@ export default function ScrollReaderScreen() {
   }
 
   const isDark = palette.mode === 'dark';
-  const pillBg = isDark ? '#232925' : '#FFFFFF';
-  const pillBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(31,29,26,0.06)';
+  const pillBg = 'rgba(17, 26, 21, 0.72)';
+  const pillBorder = 'rgba(255,255,255,0.16)';
   const currentWorkTitle = currentWork ? getLocalizedWorkTitle(currentWork, appLanguage) : '';
   const shortWorkTitle = currentWorkTitle.replace(/\s*\(.*\)/, '');
   const activeTopicDisplay = activeTopic ? getLocalizedTopicLabel(activeTopic, appLanguage) : null;
@@ -181,7 +181,7 @@ export default function ScrollReaderScreen() {
   const scrollBackdropSource = resolvePageArtwork('scroll', settings, currentWork?.id).source;
 
   return (
-    <View style={[styles.screenOuter, { backgroundColor: palette.background }]}>
+    <View style={[styles.screenOuter, { backgroundColor: '#12211A' }]}>
       <View style={styles.stageColumn} onLayout={onFeedLayout}>
         {settings.scrollBackdropEnabled ? (
           <View pointerEvents="none" style={styles.backdropLayer}>
@@ -190,20 +190,18 @@ export default function ScrollReaderScreen() {
               style={[
                 styles.backdropGlaze,
                 {
-                  backgroundColor: isDark
-                    ? 'rgba(20, 23, 21, 0.70)'
-                    : 'rgba(245, 242, 235, 0.68)',
+                  backgroundColor: 'rgba(14, 24, 19, 0.68)',
                 },
               ]}
             />
           </View>
         ) : null}
 
-        {/* Minimalist Floating Top Pill Navigation (matching Bible app Scroll UI) */}
+        {/* Minimalist Floating Top Pill Navigation (YouTube Shorts Overlay Controls) */}
         <View
           style={[
             styles.floatingTopBar,
-            { paddingTop: Math.max(insets.top, 10) },
+            { paddingTop: Math.max(insets.top, 8) },
           ]}
         >
           <View style={styles.topLeftGroup}>
@@ -213,7 +211,7 @@ export default function ScrollReaderScreen() {
               accessibilityLabel={appLanguage === 'ko' ? 'Switch to English' : '한국어로 전환'}
               style={[styles.pillBtn, styles.softShadow, { backgroundColor: pillBg, borderColor: pillBorder }]}
             >
-              <Text style={[styles.pillText, { color: palette.textPrimary }]}>
+              <Text style={[styles.pillText, { color: '#FFFFFF' }]}>
                 {strings.scrollUi.langBadge}
               </Text>
             </Pressable>
@@ -226,8 +224,8 @@ export default function ScrollReaderScreen() {
             >
               <Ionicons
                 name={isDark ? 'sunny-outline' : 'moon-outline'}
-                size={20}
-                color={palette.textPrimary}
+                size={19}
+                color="#FFFFFF"
               />
             </Pressable>
 
@@ -246,8 +244,8 @@ export default function ScrollReaderScreen() {
             >
               <Ionicons
                 name="image-outline"
-                size={19}
-                color={settings.scrollBackdropEnabled ? '#FFFFFF' : palette.textPrimary}
+                size={18}
+                color="#FFFFFF"
               />
             </Pressable>
           </View>
@@ -266,10 +264,10 @@ export default function ScrollReaderScreen() {
                 { backgroundColor: pillBg, borderColor: pillBorder },
               ]}
             >
-              <Text style={[styles.pillText, { color: palette.textPrimary }]} numberOfLines={1}>
+              <Text style={[styles.pillText, styles.selectorText, { color: '#FFFFFF' }]} numberOfLines={1}>
                 {selectorChipLabel}
               </Text>
-              <Ionicons name="chevron-down" size={16} color={palette.textPrimary} />
+              <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
             </Pressable>
 
             <Pressable
@@ -278,7 +276,7 @@ export default function ScrollReaderScreen() {
               accessibilityLabel={strings.tabs.my}
               style={[styles.circleIconBtn, styles.softShadow, { backgroundColor: pillBg, borderColor: pillBorder }]}
             >
-              <Ionicons name="person-circle-outline" size={24} color={palette.textPrimary} />
+              <Ionicons name="person-circle-outline" size={23} color="#FFFFFF" />
             </Pressable>
           </View>
         </View>
@@ -332,7 +330,7 @@ export default function ScrollReaderScreen() {
                   styles.endCard,
                   {
                     height: feedHeight,
-                    backgroundColor: settings.scrollBackdropEnabled ? 'transparent' : palette.background,
+                    backgroundColor: 'transparent',
                   },
                 ]}
               >
@@ -640,23 +638,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingBottom: 8,
+    gap: 6,
   },
   topLeftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    flexShrink: 0,
   },
   topRightGroup: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'flex-end',
+    gap: 6,
   },
   pillBtn: {
-    paddingHorizontal: 14,
-    height: 40,
-    borderRadius: 20,
+    paddingHorizontal: 11,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -665,23 +668,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 14,
-    height: 40,
-    borderRadius: 20,
+    paddingHorizontal: 11,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
-    maxWidth: 165,
+    flexShrink: 1,
+    maxWidth: 132,
   },
   pillText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
+  selectorText: {
+    flexShrink: 1,
+  },
   circleIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   softShadow: {
     shadowColor: '#1F1D1A',

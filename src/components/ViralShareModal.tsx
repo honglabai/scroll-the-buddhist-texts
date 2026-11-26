@@ -22,7 +22,7 @@ import {
   getLocalizedWorkTitle,
 } from '../i18n/strings';
 import { buildSharePayload } from '../services/shareService';
-import { resolveWorkArtwork } from './pageArtworks';
+import { resolveSegmentCardTheme } from './pageArtworks';
 import { MIN_TOUCH_SIZE } from './theme';
 
 type CardStylePreset = 'scenic' | 'hanji' | 'ink' | 'forest';
@@ -209,10 +209,11 @@ export function ViralShareModal({
 
   const allowText = canShareSegmentText(item.rights);
   const cardTheme = CARD_PRESETS[preset];
-  const cardBody = allowText ? item.segmentText.text : strings.viralModal.restrictedBody;
+  const rawBody = item.segmentText.paraphrase ?? item.segmentText.text;
+  const cardBody = allowText ? rawBody : strings.viralModal.restrictedBody;
   const attribution = `${edLabel} · ${translator}`;
   const brandHeading = appLanguage === 'en' ? 'Dharma Scroll' : '마음스크롤 · Dharma Scroll';
-  const workArtSource = resolveWorkArtwork(item.work.id).source;
+  const workArtSource = resolveSegmentCardTheme(item.segment, item.work.id).image;
 
   const handleCopy = async () => {
     const textToCopy = shareInfo?.message ?? `${workTitle} · ${sourceRef}`;

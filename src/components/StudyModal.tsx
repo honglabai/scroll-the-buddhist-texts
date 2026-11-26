@@ -165,9 +165,9 @@ export function StudyModal({
         <View key={ann.id} style={[styles.block, { backgroundColor: palette.card, borderColor: palette.border }]}>
           {loc.title && <Text style={[styles.blockTitle, { color: palette.primary }]}>{loc.title}</Text>}
           <Text style={[styles.blockBody, { color: palette.textPrimary }]}>{loc.body}</Text>
-          {ann.uncertaintyNote && (
+          {loc.uncertaintyNote && (
             <Text style={[styles.uncertainty, { color: palette.accent }]}>
-              {strings.study.notePrefix}: {ann.uncertaintyNote}
+              {strings.study.notePrefix}: {loc.uncertaintyNote}
             </Text>
           )}
           <Text style={[styles.sourceLabel, { color: palette.textSecondary }]}>

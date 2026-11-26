@@ -84,9 +84,22 @@ describe('Bilingual (Korean / English) Consistency & Open Scriptures Parity', ()
 
   it('localizes reading plans without mixing languages', async () => {
     const plans = await repo.getPlans();
-    expect(plans.length).toBeGreaterThanOrEqual(3);
+    expect(plans.length).toBeGreaterThanOrEqual(4);
+    expect(plans.some((p) => p.id === 'plan-bd-30')).toBe(true);
     for (const plan of plans) {
       expect(getLocalizedPlanTitle(plan, 'en')).not.toMatch(/[\uAC00-\uD7A3]/);
+    }
+  });
+
+  it('localizes Bulgyodaejeon topics cleanly into English without Hangul leakage', () => {
+    expect(getLocalizedTopicLabel('마음공부', 'en')).toBe('Mind Cultivation');
+    expect(getLocalizedTopicLabel('평온', 'en')).toBe('Serenity');
+    expect(getLocalizedTopicLabel('지혜', 'en')).toBe('Wisdom');
+    expect(getLocalizedTopicLabel('배움', 'en')).toBe('Learning & Study');
+    expect(getLocalizedTopicLabel('실천', 'en')).toBe('Living Practice');
+    expect(getLocalizedTopicLabel('배움과 실천', 'en')).toBe('Study & Practice');
+    for (const topic of ['마음공부', '평온', '지혜', '배움', '실천', '배움과 실천', '청정', '선행', '참선', '불성']) {
+      expect(getLocalizedTopicLabel(topic, 'en')).not.toMatch(/[\uAC00-\uD7A3]/);
     }
   });
 });

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -15,9 +16,11 @@ import type { FeedItem } from '../features/app/AppProvider';
 import {
   getLocalizedEditionLabel,
   getLocalizedSourceRef,
+  getLocalizedTopicLabel,
   getLocalizedWorkTitle,
   getStrings,
 } from '../i18n/strings';
+import { resolveSegmentCardTheme } from './pageArtworks';
 import { getFontSize, MIN_TOUCH_SIZE, type ThemePalette } from './theme';
 
 interface VerseCardProps {
@@ -60,7 +63,6 @@ export function VerseCard({
   isBookmarked,
   noteCount,
   isTtsActive,
-  scenicBackdropActive = false,
   canGoNext,
   onNext,
   onToggleBookmark,
@@ -70,12 +72,10 @@ export function VerseCard({
   onToggleTts,
 }: VerseCardProps) {
   const [longReadOpen, setLongReadOpen] = useState(false);
-  const [showOriginal, setShowOriginal] = useState(false);
+  const [showFullTranslation, setShowFullTranslation] = useState(false);
 
   const strings = getStrings(appLanguage);
-  const isDark = palette.mode === 'dark';
-  const fontSize = getFontSize(fontScaleLevel);
-  const lineHeight = Math.round(fontSize * lineHeightMultiplier);
+  const baseFontSize = getFontSize(fontScaleLevel);
   const fontFamily =
     fontStyle === 'serif'
       ? Platform.select({
@@ -90,251 +90,224 @@ export function VerseCard({
               : '"Noto Sans KR", system-ui, sans-serif',
         });
 
-  const bodyText = item.segmentText?.text ?? strings.card.missingEditionText;
-  const isLongText = bodyText.length > 150 || bodyText.includes('\n');
-  const ttsAllowed = canReadWithTTS(item.rights);
+  const hasParaphrase = Boolean(item.segmentText?.paraphrase?.trim());
+  const fullTranslationText = item.segmentText?.text ?? strings.card.missingEditionText;
+  const primaryQuoteText =
+    !showFullTranslation && item.segmentText?.paraphrase
+      ? item.segmentText.paraphrase
+      : fullTranslationText;
 
+  const isVeryLong = primaryQuoteText.length > 130 || primaryQuoteText.includes('\n');
+  const displayFontSize =
+    primaryQuoteText.length <= 42
+      ? Math.min(27, baseFontSize + 2)
+      : primaryQuoteText.length <= 95
+        ? Math.min(23, baseFontSize - 1)
+        : primaryQuoteText.length <= 150
+          ? Math.max(15, Math.min(18, baseFontSize - 4))
+          : 14;
+  const displayLineHeight = Math.round(displayFontSize * Math.min(1.5, Math.max(1.36, lineHeightMultiplier)));
+
+  const ttsAllowed = canReadWithTTS(item.rights);
   const workTitle = getLocalizedWorkTitle(item.work, appLanguage);
-  const shortWorkTitle = workTitle.replace(/\s*\(.*\)/, '');
   const sourceRef = getLocalizedSourceRef(item.segment, appLanguage);
   const originalEditionLabel = item.originalEdition
     ? getLocalizedEditionLabel(item.originalEdition, appLanguage)
     : '';
 
-  const progressPct = total > 0 ? Math.min(100, Math.round(((index + 1) / total) * 100)) : 0;
+  const primaryTopicRaw = item.segment.topics[0] ?? '수행';
+  const topicLabel = getLocalizedTopicLabel(primaryTopicRaw, appLanguage);
+  const cardTheme = resolveSegmentCardTheme(item.segment, item.work.id);
 
-  // Serene elevated circle styling (Bible-app inspired warm cream / ink floating circles)
-  const circleBg = isDark ? '#232925' : '#FFFFFF';
-  const circleBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(31,29,26,0.06)';
-  const iconColor = isDark ? '#EAE6DC' : '#1F1D1A';
-  const isCompact = cardHeight < 660;
+  const progressPct = total > 0 ? Math.min(100, Math.round(((index + 1) / total) * 100)) : 0;
+  const isCompact = cardHeight < 650;
+  const topHeaderClearance = topInset + 52 + extraTopOffset;
 
   return (
-    <View
-      style={[
-        styles.fullContainer,
-        {
-          height: cardHeight,
-          backgroundColor: scenicBackdropActive ? 'transparent' : palette.background,
-        },
-      ]}
-    >
-      {/* Center Serene Typography Stage */}
-      <View
-        style={[
-          styles.centerStage,
-          {
-            paddingTop: topInset + (isCompact ? 56 : 72) + extraTopOffset,
-            paddingBottom: isCompact ? 168 : 196,
-          },
-        ]}
-      >
-        <Text style={[styles.refCaption, { color: palette.textSecondary }]} numberOfLines={1}>
-          {shortWorkTitle} · {sourceRef} ({index + 1}/{total})
-        </Text>
-
-        <ScrollView
-          style={styles.bodyScroll}
-          contentContainerStyle={styles.bodyContent}
-          nestedScrollEnabled
-          showsVerticalScrollIndicator={isLongText}
-        >
-          <Text
-            style={[
-              styles.verseText,
-              {
-                color: palette.textPrimary,
-                fontSize: isCompact && fontSize > 22 ? 22 : fontSize,
-                lineHeight: isCompact && fontSize > 22 ? Math.round(22 * lineHeightMultiplier) : lineHeight,
-                fontFamily,
-              },
-            ]}
-          >
-            {bodyText}
-          </Text>
-
-          {showOriginal && item.originalText && (
+    <View style={[styles.fullContainer, { height: cardHeight, paddingTop: topHeaderClearance }]}>
+      {/* Unified Fullscreen Vertical Shorts Card */}
+      <View style={[styles.shortsCard, { backgroundColor: cardTheme.panelBg }]}>
+        {/* Top Atmospheric Thematic Artwork */}
+        <View style={[styles.artworkStage, { height: isCompact ? '38%' : '42%' }]}>
+          <Image source={cardTheme.image} style={styles.artworkImage} resizeMode="cover" />
+          {Platform.OS === 'web' ? (
             <View
+              pointerEvents="none"
               style={[
-                styles.originalBox,
+                styles.imageFeather,
                 {
-                  borderColor: palette.border,
-                  backgroundColor: circleBg,
-                },
+                  backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 45%, ${cardTheme.panelBg} 100%)`,
+                } as unknown as Record<string, unknown>,
               ]}
-            >
-              <Text style={[styles.originalLabel, { color: palette.textSecondary }]}>
-                {strings.card.originalLabel} · {originalEditionLabel}
-              </Text>
-              <Text style={[styles.originalText, { color: palette.textPrimary }]}>
-                {item.originalText.text}
+            />
+          ) : (
+            <View
+              pointerEvents="none"
+              style={[styles.imageFeatherNative, { backgroundColor: cardTheme.panelBg, opacity: 0.45 }]}
+            />
+          )}
+
+          {/* Discreet Counter + Draft Status Pill Top-Left inside Card Image */}
+          <View pointerEvents="none" style={styles.cardTopOverlayRow}>
+            <View style={styles.counterBadge}>
+              <Text style={styles.counterBadgeText}>
+                {index + 1} / {total}
               </Text>
             </View>
-          )}
-        </ScrollView>
+            {hasParaphrase && (
+              <View style={styles.draftBadge}>
+                <Text style={styles.draftBadgeText}>{strings.shortCard.draftBadge}</Text>
+              </View>
+            )}
+          </View>
+        </View>
 
-        {/* Quiet Inline View Toggles below centered verse */}
-        <View style={styles.inlineViewRow}>
-          {isLongText && (
+        {/* Bottom Tinted Sanctuary Card Content Stage */}
+        <View style={[styles.contentStage, { backgroundColor: cardTheme.panelBg }]}>
+          <View style={styles.centeredPassage}>
+            {/* Topic Subtitle */}
+            <Text style={[styles.topicCaption, { color: cardTheme.accentText }]} numberOfLines={1}>
+              {topicLabel}
+            </Text>
+
+            {/* Centered Hero Scripture Passage / Teaching */}
             <Pressable
               onPress={() => setLongReadOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel={strings.scrollUi.fullScreenView}
-              style={styles.inlineActionBtn}
+              accessibilityLabel={`${topicLabel}. ${primaryQuoteText}`}
+              style={styles.quotePressable}
             >
-              <Text style={[styles.inlineActionText, { color: palette.textSecondary }]}>
-                {strings.scrollUi.fullScreenView}
+              <Text
+                numberOfLines={showFullTranslation ? (isCompact ? 8 : 9) : isCompact ? 5 : 6}
+                ellipsizeMode="tail"
+                style={[
+                  styles.quoteBody,
+                  {
+                    fontSize: displayFontSize,
+                    lineHeight: displayLineHeight,
+                    fontFamily,
+                  },
+                ]}
+              >
+                {primaryQuoteText}
               </Text>
             </Pressable>
-          )}
-          {isLongText && item.originalText && (
-            <Text style={{ color: palette.textSecondary, fontSize: 12 }}>·</Text>
-          )}
-          {item.originalText && (
+
+            {/* Source Reference & Page Attribution */}
+            <Text style={[styles.sourceCitation, { color: cardTheme.subText }]} numberOfLines={2}>
+              {sourceRef}
+            </Text>
+
+            {/* Quick Inline Expansion Chips (Full Translation / Full Modal / Original Text) */}
+            <View style={styles.inlineToggleRow}>
+              {hasParaphrase && (
+                <Pressable
+                  onPress={() => setShowFullTranslation((v) => !v)}
+                  accessibilityRole="button"
+                  style={styles.inlineChip}
+                >
+                  <Text style={styles.inlineChipText}>
+                    {showFullTranslation
+                      ? strings.shortCard.hideFullTranslation
+                      : strings.shortCard.fullTranslation}
+                  </Text>
+                </Pressable>
+              )}
+              {(isVeryLong || Boolean(item.originalText)) && (
+                <Pressable
+                  onPress={() => setLongReadOpen(true)}
+                  accessibilityRole="button"
+                  style={styles.inlineChip}
+                >
+                  <Text style={styles.inlineChipText}>
+                    {item.originalText
+                      ? strings.shortCard.originalLabel
+                      : strings.scrollUi.fullScreenView}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+          {/* Bottom-Center Next Passage / Vertical Swipe Affordance */}
+          {canGoNext && (
             <Pressable
-              onPress={() => setShowOriginal((v) => !v)}
+              onPress={onNext}
               accessibilityRole="button"
-              accessibilityLabel={
-                showOriginal ? strings.card.hideOriginal : strings.card.showOriginal
-              }
-              style={styles.inlineActionBtn}
+              accessibilityLabel={strings.shortCard.swipeNextHint}
+              style={styles.bottomSwipeCue}
             >
-              <Text style={[styles.inlineActionText, { color: palette.textSecondary }]}>
-                {showOriginal ? strings.card.hideOriginal : strings.card.showOriginal}
-              </Text>
+              <Ionicons name="chevron-up" size={16} color="rgba(255,255,255,0.85)" style={{ marginBottom: -4 }} />
+              <Text style={styles.bottomSwipeText}>{strings.shortCard.swipeNextHint}</Text>
             </Pressable>
           )}
         </View>
-      </View>
 
-      {/* Right Floating White Action Circles (Heart, Journal Note, Share/Viral, Speaker TTS, Progress %) */}
-      <View
-        style={[
-          styles.rightRail,
-          {
-            top: topInset + 64 + extraTopOffset,
-            bottom: isCompact ? 16 : 24,
-            gap: isCompact ? 8 : 12,
-          },
-        ]}
-      >
-        <FloatingCircleButton
-          icon={isBookmarked ? 'heart' : 'heart-outline'}
-          iconColor={isBookmarked ? palette.coral : iconColor}
-          bg={circleBg}
-          borderColor={circleBorder}
-          compact={isCompact}
-          onPress={onToggleBookmark}
-          accessibilityLabel={isBookmarked ? strings.card.liked : strings.card.like}
-        />
-
-        <FloatingCircleButton
-          icon="share-outline"
-          iconColor={iconColor}
-          bg={circleBg}
-          borderColor={circleBorder}
-          compact={isCompact}
-          onPress={onOpenViralCard}
-          accessibilityLabel={strings.card.forward}
-        />
-
-        <FloatingCircleButton
-          icon={isTtsActive ? 'stop' : 'volume-medium-outline'}
-          iconColor={isTtsActive ? palette.coral : iconColor}
-          bg={circleBg}
-          borderColor={circleBorder}
-          compact={isCompact}
-          dimmed={!ttsAllowed}
-          onPress={onToggleTts}
-          accessibilityLabel={isTtsActive ? strings.card.ttsStop : strings.card.ttsPlay}
-        />
-
-        <FloatingCircleButton
-          icon={noteCount > 0 ? 'create' : 'create-outline'}
-          iconColor={noteCount > 0 ? palette.accent : iconColor}
-          bg={circleBg}
-          borderColor={circleBorder}
-          compact={isCompact}
-          badge={noteCount > 0 ? noteCount : undefined}
-          badgeColor={palette.coral}
-          onPress={onOpenNote}
-          accessibilityLabel={strings.card.note}
-        />
-
-        {/* Circular Progress Percentage Ring */}
+        {/* Right-Side Vertical Viral & Engagement Rail (YouTube Shorts / Reels UX) */}
         <View
-          accessibilityLabel={`${progressPct}%`}
           style={[
-            styles.progressCircle,
+            styles.rightViralRail,
             {
-              width: isCompact ? 42 : 46,
-              height: isCompact ? 42 : 46,
-              borderRadius: isCompact ? 21 : 23,
-              backgroundColor: circleBg,
-              borderColor: progressPct >= 100 ? palette.coral : palette.border,
+              bottom: isCompact ? 12 : 18,
+              gap: isCompact ? 6 : 9,
             },
           ]}
         >
-          <View
-            style={[
-              styles.progressDot,
-              { backgroundColor: palette.coral },
-            ]}
+          <ShortsActionButton
+            icon={isBookmarked ? 'heart' : 'heart-outline'}
+            label={strings.shortCard.like}
+            iconColor={isBookmarked ? '#FF7566' : '#FFFFFF'}
+            compact={isCompact}
+            onPress={onToggleBookmark}
+            accessibilityLabel={isBookmarked ? strings.card.liked : strings.card.like}
           />
-          <Text style={[styles.progressText, { color: palette.textPrimary }]}>
-            {progressPct}%
-          </Text>
+
+          <ShortsActionButton
+            icon={noteCount > 0 ? 'bookmark' : 'bookmark-outline'}
+            label={strings.shortCard.note}
+            iconColor={noteCount > 0 ? '#F3CE84' : '#FFFFFF'}
+            badge={noteCount > 0 ? noteCount : undefined}
+            badgeColor={palette.coral}
+            compact={isCompact}
+            onPress={onOpenNote}
+            accessibilityLabel={strings.card.note}
+          />
+
+          <ShortsActionButton
+            icon={isTtsActive ? 'stop-circle' : 'volume-medium-outline'}
+            label={strings.shortCard.listen}
+            iconColor={isTtsActive ? '#FF7566' : '#FFFFFF'}
+            dimmed={!ttsAllowed}
+            compact={isCompact}
+            onPress={onToggleTts}
+            accessibilityLabel={isTtsActive ? strings.card.ttsStop : strings.card.ttsPlay}
+          />
+
+          <ShortsActionButton
+            icon="book-outline"
+            label={strings.shortCard.study}
+            iconColor="#FFFFFF"
+            compact={isCompact}
+            onPress={onOpenStudy}
+            accessibilityLabel={strings.study.title}
+          />
+
+          <ShortsActionButton
+            icon="share-social-outline"
+            label={strings.shortCard.share}
+            iconColor="#FFFFFF"
+            compact={isCompact}
+            onPress={onOpenViralCard}
+            accessibilityLabel={strings.card.forward}
+          />
+
+          <View style={styles.percentBadge} accessibilityLabel={`${progressPct}%`}>
+            <Text style={styles.percentBadgeText}>{progressPct}%</Text>
+          </View>
         </View>
       </View>
 
-      {/* Bottom-Center Swipe Up Cue + Explore Deeper CTA (Bible App layout) */}
-      <View pointerEvents="box-none" style={styles.bottomCenterStack}>
-        {canGoNext && (
-          <Pressable
-            onPress={onNext}
-            accessibilityRole="button"
-            accessibilityLabel={strings.scrollUi.swipeUpTitle}
-            style={styles.swipeCueWrapper}
-          >
-            <View style={styles.doubleChevronWrap}>
-              <Ionicons name="chevron-up" size={16} color={palette.textPrimary} style={{ marginBottom: -8 }} />
-              <Ionicons name="chevron-up" size={16} color={palette.textPrimary} />
-            </View>
-            <View
-              style={[
-                styles.swipeCardPill,
-                styles.softShadow,
-                { backgroundColor: circleBg, borderColor: circleBorder },
-              ]}
-            >
-              <Text style={[styles.swipeTitle, { color: palette.textPrimary }]}>
-                {strings.scrollUi.swipeUpTitle}
-              </Text>
-              <Text style={[styles.swipeSub, { color: palette.textSecondary }]}>
-                {strings.scrollUi.swipeUpSub}
-              </Text>
-            </View>
-          </Pressable>
-        )}
-
-        <Pressable
-          onPress={onOpenStudy}
-          accessibilityRole="button"
-          accessibilityLabel={strings.scrollUi.exploreDeeper}
-          style={[
-            styles.explorePill,
-            styles.softShadow,
-            { backgroundColor: circleBg, borderColor: circleBorder },
-          ]}
-        >
-          <Ionicons name="book-outline" size={17} color={palette.textPrimary} />
-          <Text style={[styles.exploreText, { color: palette.textPrimary }]}>
-            {strings.scrollUi.exploreDeeper}
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Full-Screen Distraction-Free Long Passage Modal */}
+      {/* Full Passage + 1914 Original Text Reader Modal */}
       <Modal
         visible={longReadOpen}
         animationType="slide"
@@ -355,24 +328,54 @@ export function VerseCard({
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.modalScroll}>
+            {hasParaphrase && (
+              <View style={[styles.modalSectionBox, { backgroundColor: palette.highlightBg }]}>
+                <Text style={{ color: palette.coral, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>
+                  {strings.shortCard.draftBadge} · {topicLabel}
+                </Text>
+                <Text style={{ color: palette.textPrimary, fontSize: 18, fontWeight: '700', lineHeight: 27 }}>
+                  {item.segmentText?.paraphrase}
+                </Text>
+              </View>
+            )}
+
             <Text
               style={[
                 styles.modalVerseText,
-                { color: palette.textPrimary, fontSize, lineHeight, fontFamily },
+                {
+                  color: palette.textPrimary,
+                  fontSize: baseFontSize,
+                  lineHeight: Math.round(baseFontSize * lineHeightMultiplier),
+                  fontFamily,
+                },
               ]}
             >
-              {bodyText}
+              {fullTranslationText}
             </Text>
+
             {item.originalText && (
-              <View style={[styles.originalBox, { borderColor: palette.border, backgroundColor: circleBg, marginTop: 20 }]}>
-                <Text style={[styles.originalLabel, { color: palette.textSecondary }]}>
+              <View style={[styles.originalModalBox, { backgroundColor: palette.surfaceElevated, borderColor: palette.border }]}>
+                <Text style={{ color: palette.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>
                   {strings.card.originalLabel} · {originalEditionLabel}
                 </Text>
-                <Text style={[styles.originalText, { color: palette.textPrimary }]}>
+                <Text style={{ color: palette.textPrimary, fontSize: 16, lineHeight: 26 }}>
                   {item.originalText.text}
                 </Text>
               </View>
             )}
+
+            <Pressable
+              onPress={() => {
+                setLongReadOpen(false);
+                onOpenStudy();
+              }}
+              style={[styles.modalStudyCta, { backgroundColor: palette.coral }]}
+            >
+              <Ionicons name="book-outline" size={18} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>
+                {strings.scrollUi.exploreDeeper}
+              </Text>
+            </Pressable>
           </ScrollView>
         </View>
       </Modal>
@@ -380,55 +383,56 @@ export function VerseCard({
   );
 }
 
-function FloatingCircleButton({
+function ShortsActionButton({
   icon,
+  label,
   iconColor,
-  bg,
-  borderColor,
-  compact,
-  dimmed,
   badge,
   badgeColor,
+  dimmed,
+  compact,
   onPress,
   accessibilityLabel,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
   iconColor: string;
-  bg: string;
-  borderColor: string;
-  compact: boolean;
-  dimmed?: boolean;
   badge?: number;
   badgeColor?: string;
+  dimmed?: boolean;
+  compact?: boolean;
   onPress: () => void;
   accessibilityLabel: string;
 }) {
-  const size = compact ? 42 : 46;
+  const size = compact ? 38 : 42;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      hitSlop={{ top: 4, bottom: 4, left: 6, right: 6 }}
-      style={[
-        styles.circleBtn,
-        styles.softShadow,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: bg,
-          borderColor,
-          opacity: dimmed ? 0.45 : 1,
-        },
-      ]}
+      hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+      style={[styles.shortsBtnCol, dimmed && { opacity: 0.45 }]}
     >
-      <Ionicons name={icon} size={compact ? 20 : 22} color={iconColor} />
-      {badge !== undefined && badge > 0 && (
-        <View style={[styles.badgeDot, { backgroundColor: badgeColor ?? '#C95B4B' }]}>
-          <Text style={styles.badgeText}>{badge}</Text>
-        </View>
-      )}
+      <View
+        style={[
+          styles.shortsIconCircle,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={compact ? 19 : 21} color={iconColor} />
+        {typeof badge === 'number' && badge > 0 && (
+          <View style={[styles.badgeDot, { backgroundColor: badgeColor ?? '#C95B4B' }]}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.shortsBtnLabel} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -436,166 +440,197 @@ function FloatingCircleButton({
 const styles = StyleSheet.create({
   fullContainer: {
     width: '100%',
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    backgroundColor: 'transparent',
+  },
+  shortsCard: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  artworkStage: {
+    width: '100%',
     position: 'relative',
     overflow: 'hidden',
   },
-  centerStage: {
-    flex: 1,
-    paddingLeft: 28,
-    paddingRight: 74,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  refCaption: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 14,
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-  bodyScroll: {
-    flexGrow: 0,
-    maxHeight: '78%',
+  artworkImage: {
     width: '100%',
+    height: '100%',
   },
-  bodyContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 4,
+  imageFeather: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 64,
   },
-  verseText: {
-    fontWeight: '600',
-    textAlign: 'center',
+  imageFeatherNative: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 24,
   },
-  originalBox: {
-    width: '100%',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  originalLabel: {
-    fontSize: 11,
-    marginBottom: 4,
-    fontWeight: '600',
-  },
-  originalText: {
-    fontSize: 15,
-    lineHeight: 22,
-    fontStyle: 'italic',
-  },
-  inlineViewRow: {
+  cardTopOverlayRow: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 12,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  counterBadge: {
+    backgroundColor: 'rgba(15, 20, 17, 0.62)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  counterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  draftBadge: {
+    backgroundColor: 'rgba(15, 20, 17, 0.56)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  draftBadgeText: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  contentStage: {
+    flex: 1,
+    paddingLeft: 18,
+    paddingRight: 72,
+    paddingTop: 6,
+    paddingBottom: 38,
+    justifyContent: 'center',
+  },
+  centeredPassage: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    marginTop: 14,
   },
-  inlineActionBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-  },
-  inlineActionText: {
+  topicCaption: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textAlign: 'center',
   },
-  rightRail: {
-    position: 'absolute',
-    right: 14,
-    justifyContent: 'center',
+  quotePressable: {
+    width: '100%',
     alignItems: 'center',
   },
-  circleBtn: {
+  quoteBody: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  sourceCitation: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  inlineToggleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  inlineChip: {
+    backgroundColor: 'rgba(0,0,0,0.22)',
     borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  inlineChipText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  bottomSwipeCue: {
+    position: 'absolute',
+    left: 18,
+    right: 72,
+    bottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  bottomSwipeText: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  rightViralRail: {
+    position: 'absolute',
+    right: 10,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  shortsBtnCol: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  shortsIconCircle: {
+    backgroundColor: 'rgba(14, 19, 16, 0.48)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
-  softShadow: {
-    shadowColor: '#1F1D1A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+  shortsBtnLabel: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 10,
+    fontWeight: '700',
   },
   badgeDot: {
     position: 'absolute',
-    top: -3,
-    right: -3,
-    minWidth: 17,
-    height: 17,
-    borderRadius: 9,
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
     color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  percentBadge: {
+    marginTop: 2,
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  percentBadgeText: {
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 10,
-    fontWeight: '800',
-  },
-  progressCircle: {
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  progressDot: {
-    position: 'absolute',
-    top: -3,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  bottomCenterStack: {
-    position: 'absolute',
-    left: 24,
-    right: 70,
-    bottom: 18,
-    alignItems: 'center',
-    gap: 14,
-  },
-  swipeCueWrapper: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  doubleChevronWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  swipeCardPill: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  swipeTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  swipeSub: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  explorePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 22,
-    minHeight: 46,
-    borderRadius: 23,
-    borderWidth: 1,
-  },
-  exploreText: {
-    fontSize: 15,
     fontWeight: '700',
   },
   modalContainer: {
@@ -622,10 +657,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalScroll: {
-    padding: 24,
+    padding: 20,
+    gap: 16,
     paddingBottom: 48,
   },
+  modalSectionBox: {
+    padding: 16,
+    borderRadius: 16,
+  },
   modalVerseText: {
-    fontWeight: '600',
+    fontWeight: '500',
+  },
+  originalModalBox: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  modalStudyCta: {
+    minHeight: MIN_TOUCH_SIZE,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
   },
 });
