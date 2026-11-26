@@ -1,7 +1,9 @@
 import type {
   Annotation,
   AppLanguage,
+  ArtworkPresetId,
   Edition,
+  PageArtworkKey,
   ReadingPlan,
   RelatedLink,
   Segment,
@@ -238,7 +240,7 @@ export interface AppStrings {
   viralModal: {
     title: string;
     subtitle: string;
-    presets: { hanji: string; forest: string; ink: string };
+    presets: { scenic: string; hanji: string; forest: string; ink: string };
     restrictedBody: string;
     saveImage: string;
     shareCard: string;
@@ -246,6 +248,28 @@ export interface AppStrings {
     sendFriend: string;
     copiedMsg: string;
     savedImageMsg: string;
+  };
+  artwork: {
+    changeBg: string;
+    pickerTitle: string;
+    pickerDesc: string;
+    scrollBackdropTitle: string;
+    scrollBackdropDesc: string;
+    scrollBackdropToggle: string;
+    perPageBgTitle: string;
+    libraryBannerBadge: string;
+    libraryBannerTitle: string;
+    libraryBannerSub: (count: number) => string;
+    plansBannerBadge: string;
+    plansBannerTitle: string;
+    savedBannerBadge: string;
+    savedBannerTitle: string;
+    savedBannerSub: (bookmarks: number, notes: number) => string;
+    myBannerBadge: string;
+    myBannerTitle: string;
+    myBannerSub: (read: number, bookmarks: number, notes: number) => string;
+    presetNames: Record<ArtworkPresetId, string>;
+    pageNames: Record<PageArtworkKey, string>;
   };
   topics: Record<string, string>;
 }
@@ -482,7 +506,7 @@ const KO_STRINGS: AppStrings = {
   viralModal: {
     title: '마음 나누기 · 공유 카드',
     subtitle: '한 구절의 울림을 이미지 카드나 문구로 전해 보세요',
-    presets: { hanji: '한지', forest: '산사', ink: '수묵' },
+    presets: { scenic: '풍경 아트', hanji: '한지', forest: '산사', ink: '수묵' },
     restrictedBody: '[권리 제한 안내] 이 판본은 원문 본문 재배포가 제한되어 출처 링크만 공유할 수 있습니다.',
     saveImage: '카드 이미지 저장',
     shareCard: '카드 공유',
@@ -490,6 +514,43 @@ const KO_STRINGS: AppStrings = {
     sendFriend: '지인에게 전달',
     copiedMsg: '구절과 출처가 클립보드에 복사되었습니다.',
     savedImageMsg: '공유용 카드 이미지를 저장했습니다.',
+  },
+  artwork: {
+    changeBg: '배경 저장',
+    pickerTitle: '페이지 배경 이미지',
+    pickerDesc: '선택한 그림이 이 페이지의 배경 카드로 자동 저장됩니다.',
+    scrollBackdropTitle: '스크롤 화면 배경 그림',
+    scrollBackdropDesc: '경전 본문 뒤에 은은한 산사·산수 풍경 배경을 함께 표시합니다.',
+    scrollBackdropToggle: '배경 그림 전환',
+    perPageBgTitle: '페이지별 배경 이미지 설정',
+    libraryBannerBadge: '오픈 경전 아카이브',
+    libraryBannerTitle: '지혜의 산맥',
+    libraryBannerSub: (count) => `검증된 퍼블릭 도메인·CC0 경전 ${count}부 수록`,
+    plansBannerBadge: '매일 한 걸음',
+    plansBannerTitle: '수행과 읽기 계획',
+    savedBannerBadge: '개인 수행 보관함',
+    savedBannerTitle: '마음에 간직한 말씀',
+    savedBannerSub: (b, n) => `찜한 구절 ${b}개 · 비공개 일지 ${n}편`,
+    myBannerBadge: '로컬 전용 안식처',
+    myBannerTitle: '고요한 참선의 뜰',
+    myBannerSub: (r, b, n) => `읽은 구절 ${r}회 · 찜 ${b} · 일지 ${n}`,
+    presetNames: {
+      'dawn-pagoda': '새벽 산사와 석탑',
+      'lotus-pond': '연꽃 피는 아침 연못',
+      'bamboo-path': '대나무 숲과 운해 길',
+      'geumgang-peaks': '정선 · 금강전도',
+      'autumn-temple': '안견 · 동정추월 산사',
+      'monk-halo': '김홍도 · 연꽃 위 참선',
+      'evening-bell': '안견 · 저녁 종소리 산사',
+    },
+    pageNames: {
+      today: '오늘',
+      plans: '읽기 계획',
+      scroll: '스크롤',
+      library: '서재',
+      saved: '저장함',
+      my: '내 정보',
+    },
   },
   topics: {
     마음: '마음',
@@ -741,7 +802,7 @@ const EN_STRINGS: AppStrings = {
   viralModal: {
     title: 'Share Verse Card',
     subtitle: 'Share a passage as an image card or formatted quote',
-    presets: { hanji: 'Paper', forest: 'Forest', ink: 'Ink' },
+    presets: { scenic: 'Scenic Art', hanji: 'Paper', forest: 'Forest', ink: 'Ink' },
     restrictedBody: '[Rights Notice] Redistribution of this text body is restricted; only the source citation can be shared.',
     saveImage: 'Save Card Image',
     shareCard: 'Share Card',
@@ -749,6 +810,43 @@ const EN_STRINGS: AppStrings = {
     sendFriend: 'Forward',
     copiedMsg: 'Quote and citation copied to clipboard.',
     savedImageMsg: 'Saved shareable card image (PNG).',
+  },
+  artwork: {
+    changeBg: 'Set Art',
+    pickerTitle: 'Page Background Art',
+    pickerDesc: 'Your chosen artwork is saved locally for this page.',
+    scrollBackdropTitle: 'Scroll Scenic Background',
+    scrollBackdropDesc: 'Display subtle temple & landscape artwork softly behind Scroll verses.',
+    scrollBackdropToggle: 'Toggle scenic backdrop',
+    perPageBgTitle: 'Per-Page Background Artwork',
+    libraryBannerBadge: 'Open Scripture Canon',
+    libraryBannerTitle: 'Peaks of Wisdom',
+    libraryBannerSub: (count) => `${count} verified public-domain & CC0 works included`,
+    plansBannerBadge: 'Daily Rhythm',
+    plansBannerTitle: 'Mindful Reading Plans',
+    savedBannerBadge: 'Personal Archive',
+    savedBannerTitle: 'Treasured Passages',
+    savedBannerSub: (b, n) => `${b} bookmarks · ${n} journal notes`,
+    myBannerBadge: 'Offline Sanctuary',
+    myBannerTitle: 'Quiet Practice Space',
+    myBannerSub: (r, b, n) => `${r} reads · ${b} saved · ${n} notes`,
+    presetNames: {
+      'dawn-pagoda': 'Dawn Pagoda Path',
+      'lotus-pond': 'Morning Lotus Courtyard',
+      'bamboo-path': 'Misty Bamboo Trail',
+      'geumgang-peaks': 'Jeong Seon · Geumgang Peaks',
+      'autumn-temple': 'An Gyeon · Autumn Mist Temple',
+      'monk-halo': 'Kim Hong-do · Halo on Lotus Cloud',
+      'evening-bell': 'An Gyeon · Evening Temple Bell',
+    },
+    pageNames: {
+      today: 'Today',
+      plans: 'Plans',
+      scroll: 'Scroll',
+      library: 'Library',
+      saved: 'Saved',
+      my: 'My',
+    },
   },
   topics: {
     마음: 'Mind',

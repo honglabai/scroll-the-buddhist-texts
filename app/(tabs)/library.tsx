@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PageBgPickerModal } from '../../src/components/PageBgPickerModal';
+import { ScenicHeroCard } from '../../src/components/ScenicHeroCard';
+import { resolvePageArtwork, resolveWorkArtwork } from '../../src/components/pageArtworks';
 import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import type { SearchResultItem } from '../../src/data/repository';
 import type { Tradition } from '../../src/domain/types';
@@ -24,10 +28,13 @@ import {
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { palette, appLanguage, strings, works, search, selectWorkAndSegment } = useApp();
+  const { palette, appLanguage, strings, settings, works, search, selectWorkAndSegment } = useApp();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResultItem[] | null>(null);
   const [traditionFilter, setTraditionFilter] = useState<'all' | Tradition>('all');
+  const [bgPickerOpen, setBgPickerOpen] = useState(false);
+
+  const libraryHeroSource = resolvePageArtwork('library', settings).source;
 
   useEffect(() => {
     if (!query.trim()) return;
@@ -151,6 +158,18 @@ export default function LibraryScreen() {
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
+          <ScenicHeroCard
+            source={libraryHeroSource}
+            badgeText={strings.artwork.libraryBannerBadge}
+            title={strings.artwork.libraryBannerTitle}
+            subtitle={strings.artwork.libraryBannerSub(works.length)}
+            changeArtLabel={strings.artwork.changeBg}
+            onPressChangeArt={() => setBgPickerOpen(true)}
+            height={186}
+            cardBg={palette.card}
+            cardBorder={palette.border}
+          />
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             {traditionEntries.map(([key, label]) => {
               const active = traditionFilter === key;
@@ -190,6 +209,11 @@ export default function LibraryScreen() {
                 style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}
               >
                 <View style={styles.workRow}>
+                  <Image
+                    source={resolveWorkArtwork(work.id).source}
+                    style={styles.workThumb}
+                    resizeMode="cover"
+                  />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: palette.textPrimary, fontSize: 17, fontWeight: '700' }}>
                       {title}
@@ -219,6 +243,12 @@ export default function LibraryScreen() {
           })}
         </ScrollView>
       )}
+
+      <PageBgPickerModal
+        visible={bgPickerOpen}
+        pageKey="library"
+        onClose={() => setBgPickerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -265,7 +295,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
   },
-  workRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  workRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  workThumb: { width: 52, height: 52, borderRadius: 12 },
   countBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   countBadge: {
     paddingHorizontal: 8,

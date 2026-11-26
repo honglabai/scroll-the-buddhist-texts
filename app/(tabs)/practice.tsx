@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PageBgPickerModal } from '../../src/components/PageBgPickerModal';
+import { ScenicHeroCard } from '../../src/components/ScenicHeroCard';
+import { resolvePageArtwork, resolveWorkArtwork } from '../../src/components/pageArtworks';
 import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import { useApp } from '../../src/features/app/AppProvider';
 import { getLocalizedPlanDesc, getLocalizedPlanTitle } from '../../src/i18n/strings';
@@ -21,6 +25,7 @@ export default function PracticeScreen() {
     palette,
     appLanguage,
     strings,
+    settings,
     plans,
     planProgressMap,
     readEventsCount,
@@ -34,6 +39,8 @@ export default function PracticeScreen() {
   // Simple reflection timer (3 minutes = 180s)
   const [meditationSec, setMeditationSec] = useState(180);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [bgPickerOpen, setBgPickerOpen] = useState(false);
+  const plansHeroArt = resolvePageArtwork('plans', settings).source;
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -72,6 +79,18 @@ export default function PracticeScreen() {
         <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
           {strings.practice.subtitle(readEventsCount)}
         </Text>
+
+        <ScenicHeroCard
+          source={plansHeroArt}
+          badgeText={strings.artwork.plansBannerBadge}
+          title={strings.artwork.plansBannerTitle}
+          subtitle={strings.practice.subtitle(readEventsCount)}
+          changeArtLabel={strings.artwork.changeBg}
+          onPressChangeArt={() => setBgPickerOpen(true)}
+          height={186}
+          cardBg={palette.card}
+          cardBorder={palette.border}
+        />
 
         {/* Breathing / Reflection Timer */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -123,6 +142,11 @@ export default function PracticeScreen() {
           return (
             <View key={plan.id} style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
               <View style={styles.rowBetween}>
+                <Image
+                  source={resolveWorkArtwork(plan.workId).source}
+                  style={styles.planThumb}
+                  resizeMode="cover"
+                />
                 <Text style={[styles.cardTitle, { color: palette.textPrimary, flex: 1 }]}>
                   {getLocalizedPlanTitle(plan, appLanguage)}
                 </Text>
@@ -200,6 +224,12 @@ export default function PracticeScreen() {
           );
         })}
       </ScrollView>
+
+      <PageBgPickerModal
+        visible={bgPickerOpen}
+        pageKey="plans"
+        onClose={() => setBgPickerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -253,4 +283,5 @@ const styles = StyleSheet.create({
   },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
+  planThumb: { width: 44, height: 44, borderRadius: 10 },
 });

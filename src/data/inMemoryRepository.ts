@@ -53,6 +53,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     'work-iti': 'ed-work-iti-en-sujato',
     'work-ud': 'ed-work-ud-en-sujato',
   },
+  scrollBackdropEnabled: false,
+  pageArtworkOverrides: {},
 };
 
 export class InMemoryRepository implements AppRepository {

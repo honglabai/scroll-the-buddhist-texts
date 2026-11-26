@@ -196,6 +196,17 @@ export interface PlanProgress {
   reminderMinute: number;
 }
 
+export type PageArtworkKey = 'today' | 'plans' | 'scroll' | 'library' | 'saved' | 'my';
+
+export type ArtworkPresetId =
+  | 'dawn-pagoda'
+  | 'lotus-pond'
+  | 'bamboo-path'
+  | 'geumgang-peaks'
+  | 'autumn-temple'
+  | 'monk-halo'
+  | 'evening-bell';
+
 export interface AppSettings {
   appLanguage: AppLanguage;
   fontScaleLevel: FontScaleLevel;
@@ -207,6 +218,8 @@ export interface AppSettings {
   ttsVoiceId?: string;
   selectedEditionByWork: Record<string, string>;
   activeTopic?: string;
+  scrollBackdropEnabled?: boolean;
+  pageArtworkOverrides?: Partial<Record<PageArtworkKey, ArtworkPresetId>>;
 }
 
 export interface ContentPack {

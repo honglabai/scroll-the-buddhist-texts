@@ -13,6 +13,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PageBgPickerModal } from '../../src/components/PageBgPickerModal';
+import { ARTWORK_PRESETS, resolvePageArtwork } from '../../src/components/pageArtworks';
 import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import { TOPICS } from '../../src/domain/readingRules';
 import { useApp } from '../../src/features/app/AppProvider';
@@ -21,10 +23,6 @@ import {
   getLocalizedTopicLabel,
   getLocalizedWorkTitle,
 } from '../../src/i18n/strings';
-
-const HERO_ART = require('../../assets/images/journey-hero.jpg');
-const PLANS_ART = require('../../assets/images/ways-plans.jpg');
-const TOPICS_ART = require('../../assets/images/ways-topics.jpg');
 
 function formatTodayDate(lang: 'ko' | 'en'): string {
   const now = new Date();
@@ -43,6 +41,7 @@ export default function TodayScreen() {
     palette,
     appLanguage,
     strings,
+    settings,
     currentWork,
     feedItems,
     currentSegmentIndex,
@@ -56,10 +55,14 @@ export default function TodayScreen() {
   } = useApp();
 
   const [topicModalOpen, setTopicModalOpen] = useState(false);
+  const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const [installDismissed, setInstallDismissed] = useState(false);
 
   const dateLabel = useMemo(() => formatTodayDate(appLanguage), [appLanguage]);
   const isDark = palette.mode === 'dark';
+  const heroArtSource = resolvePageArtwork('today', settings, currentWork?.id).source;
+  const plansTileArtSource = resolvePageArtwork('plans', settings).source;
+  const topicsTileArtSource = ARTWORK_PRESETS['bamboo-path'].source;
 
   if (!ready) {
     return (
@@ -189,7 +192,7 @@ export default function TodayScreen() {
 
             <View style={styles.heroFrame}>
               <ImageBackground
-                source={HERO_ART}
+                source={heroArtSource}
                 style={styles.heroBg}
                 imageStyle={styles.heroBgImage}
                 resizeMode="cover"
@@ -211,8 +214,19 @@ export default function TodayScreen() {
                 )}
 
                 <View style={styles.heroContent}>
-                  <View style={styles.verseBadge}>
-                    <Text style={styles.verseBadgeText}>{strings.today.verseByVerseBadge}</Text>
+                  <View style={styles.heroBadgeRow}>
+                    <View style={styles.verseBadge}>
+                      <Text style={styles.verseBadgeText}>{strings.today.verseByVerseBadge}</Text>
+                    </View>
+                    <Pressable
+                      onPress={() => setBgPickerOpen(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel={strings.artwork.changeBg}
+                      style={styles.heroArtBtn}
+                    >
+                      <Ionicons name="image-outline" size={14} color="#FFFFFF" />
+                      <Text style={styles.heroArtBtnText}>{strings.artwork.changeBg}</Text>
+                    </Pressable>
                   </View>
 
                   <View style={styles.heroBottomStack}>
@@ -262,7 +276,7 @@ export default function TodayScreen() {
                 style={styles.wayTile}
               >
                 <ImageBackground
-                  source={PLANS_ART}
+                  source={plansTileArtSource}
                   style={styles.wayBg}
                   imageStyle={{ borderRadius: 18 }}
                   resizeMode="cover"
@@ -292,7 +306,7 @@ export default function TodayScreen() {
                 style={styles.wayTile}
               >
                 <ImageBackground
-                  source={TOPICS_ART}
+                  source={topicsTileArtSource}
                   style={styles.wayBg}
                   imageStyle={{ borderRadius: 18 }}
                   resizeMode="cover"
@@ -387,6 +401,12 @@ export default function TodayScreen() {
           </View>
         </View>
       </Modal>
+
+      <PageBgPickerModal
+        visible={bgPickerOpen}
+        pageKey="today"
+        onClose={() => setBgPickerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -514,6 +534,28 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 18,
     justifyContent: 'space-between',
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  heroArtBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(24, 26, 22, 0.62)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  heroArtBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   verseBadge: {
     alignSelf: 'flex-start',

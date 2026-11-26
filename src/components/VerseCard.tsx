@@ -35,6 +35,7 @@ interface VerseCardProps {
   isBookmarked: boolean;
   noteCount: number;
   isTtsActive: boolean;
+  scenicBackdropActive?: boolean;
   canGoNext: boolean;
   onNext: () => void;
   onToggleBookmark: () => void;
@@ -59,6 +60,7 @@ export function VerseCard({
   isBookmarked,
   noteCount,
   isTtsActive,
+  scenicBackdropActive = false,
   canGoNext,
   onNext,
   onToggleBookmark,
@@ -108,7 +110,15 @@ export function VerseCard({
   const isCompact = cardHeight < 660;
 
   return (
-    <View style={[styles.fullContainer, { height: cardHeight, backgroundColor: palette.background }]}>
+    <View
+      style={[
+        styles.fullContainer,
+        {
+          height: cardHeight,
+          backgroundColor: scenicBackdropActive ? 'transparent' : palette.background,
+        },
+      ]}
+    >
       {/* Center Serene Typography Stage */}
       <View
         style={[

@@ -9,10 +9,12 @@ import type {
   Annotation,
   AppLanguage,
   AppSettings,
+  ArtworkPresetId,
   Bookmark,
   Edition,
   FontScaleLevel,
   Note,
+  PageArtworkKey,
   PlanItem,
   PlanProgress,
   ReadingMode,
@@ -119,6 +121,8 @@ interface AppContextValue {
   updateThemeMode: (mode: ThemeMode) => Promise<void>;
   updateReduceMotion: (value: boolean) => Promise<void>;
   updateTtsRate: (rate: number) => Promise<void>;
+  updateScrollBackdrop: (enabled: boolean) => Promise<void>;
+  updatePageArtwork: (pageKey: PageArtworkKey, presetId: ArtworkPresetId) => Promise<void>;
   setAppLanguage: (lang: AppLanguage) => Promise<void>;
   exportBackup: () => Promise<PersonalDataBackup>;
   importBackup: (rawJson: string) => Promise<void>;
@@ -837,6 +841,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [settings]
   );
 
+  const updateScrollBackdrop = useCallback(
+    async (enabled: boolean) => {
+      const next = { ...settings, scrollBackdropEnabled: enabled };
+      setSettings(next);
+      await repoRef.current.saveSettings(next);
+    },
+    [settings]
+  );
+
+  const updatePageArtwork = useCallback(
+    async (pageKey: PageArtworkKey, presetId: ArtworkPresetId) => {
+      const next: AppSettings = {
+        ...settings,
+        pageArtworkOverrides: {
+          ...(settings.pageArtworkOverrides ?? {}),
+          [pageKey]: presetId,
+        },
+      };
+      setSettings(next);
+      await repoRef.current.saveSettings(next);
+    },
+    [settings]
+  );
+
   const setAppLanguage = useCallback(
     async (nextLang: AppLanguage) => {
       if (nextLang === appLanguage) return;
@@ -986,6 +1014,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateThemeMode,
     updateReduceMotion,
     updateTtsRate,
+    updateScrollBackdrop,
+    updatePageArtwork,
     setAppLanguage,
     exportBackup,
     importBackup,

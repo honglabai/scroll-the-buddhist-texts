@@ -3,6 +3,9 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PageBgPickerModal } from '../src/components/PageBgPickerModal';
+import { ScenicHeroCard } from '../src/components/ScenicHeroCard';
+import { resolvePageArtwork } from '../src/components/pageArtworks';
 import { MIN_TOUCH_SIZE } from '../src/components/theme';
 import { useApp } from '../src/features/app/AppProvider';
 
@@ -20,6 +23,7 @@ export default function SavedScreen() {
     palette,
     appLanguage,
     strings,
+    settings,
     bookmarks,
     notes,
     toggleBookmark,
@@ -28,6 +32,9 @@ export default function SavedScreen() {
     navigateToSegmentById,
     getSegmentSummary,
   } = useApp();
+
+  const [bgPickerOpen, setBgPickerOpen] = useState(false);
+  const savedHeroArt = resolvePageArtwork('saved', settings).source;
 
   const [tab, setTab] = useState<'bookmarks' | 'notes'>('bookmarks');
   const [selectedFolder, setSelectedFolder] = useState<string>(ALL_FOLDERS_SENTINEL);
@@ -136,6 +143,18 @@ export default function SavedScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
+        <ScenicHeroCard
+          source={savedHeroArt}
+          badgeText={strings.artwork.savedBannerBadge}
+          title={strings.artwork.savedBannerTitle}
+          subtitle={strings.artwork.savedBannerSub(bookmarks.length, notes.length)}
+          changeArtLabel={strings.artwork.changeBg}
+          onPressChangeArt={() => setBgPickerOpen(true)}
+          height={176}
+          cardBg={palette.card}
+          cardBorder={palette.border}
+        />
+
         {tab === 'bookmarks' ? (
           <>
             {folders.length > 1 && (
@@ -292,6 +311,12 @@ export default function SavedScreen() {
           })
         )}
       </ScrollView>
+
+      <PageBgPickerModal
+        visible={bgPickerOpen}
+        pageKey="saved"
+        onClose={() => setBgPickerOpen(false)}
+      />
     </SafeAreaView>
   );
 }

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -15,9 +16,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PageBgPickerModal } from '../src/components/PageBgPickerModal';
+import { ScenicHeroCard } from '../src/components/ScenicHeroCard';
+import { resolvePageArtwork } from '../src/components/pageArtworks';
 import { FONT_SCALE_MAP, MIN_TOUCH_SIZE } from '../src/components/theme';
 import { getFeatureFlags } from '../src/domain/featureFlags';
-import type { AppLanguage, FontScaleLevel, ThemeMode } from '../src/domain/types';
+import type { AppLanguage, FontScaleLevel, PageArtworkKey, ThemeMode } from '../src/domain/types';
 import { useApp } from '../src/features/app/AppProvider';
 import { SUBSCRIPTION_PLANS_HYPOTHESIS } from '../src/features/extensions/extensionServices';
 
@@ -42,6 +46,7 @@ export default function MyScreen() {
     updateThemeMode,
     updateReduceMotion,
     updateTtsRate,
+    updateScrollBackdrop,
     exportBackup,
     importBackup,
     wipeAllPersonalData,
@@ -51,8 +56,10 @@ export default function MyScreen() {
   const [sourcesModalOpen, setSourcesModalOpen] = useState(false);
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [pickerPageKey, setPickerPageKey] = useState<PageArtworkKey | null>(null);
   const [restoreJson, setRestoreJson] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const myHeroArt = resolvePageArtwork('my', settings).source;
 
   const handleInstallApp = async () => {
     const triggered = await promptPwaInstall();
@@ -134,6 +141,64 @@ export default function MyScreen() {
             </Pressable>
           </View>
         )}
+
+        <ScenicHeroCard
+          source={myHeroArt}
+          badgeText={strings.artwork.myBannerBadge}
+          title={strings.artwork.myBannerTitle}
+          subtitle={strings.artwork.myBannerSub(readEventsCount, bookmarks.length, notes.length)}
+          changeArtLabel={strings.artwork.changeBg}
+          onPressChangeArt={() => setPickerPageKey('my')}
+          height={186}
+          cardBg={palette.card}
+          cardBorder={palette.border}
+        />
+
+        {/* Per-Page Background Artwork Management */}
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{strings.artwork.perPageBgTitle}</Text>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={{ color: palette.textPrimary, fontWeight: '600', fontSize: 13 }}>
+                {strings.artwork.scrollBackdropTitle}
+              </Text>
+              <Text style={{ color: palette.textSecondary, fontSize: 12, marginTop: 2 }}>
+                {strings.artwork.scrollBackdropDesc}
+              </Text>
+            </View>
+            <Switch
+              value={Boolean(settings.scrollBackdropEnabled)}
+              onValueChange={updateScrollBackdrop}
+              trackColor={{ false: palette.border, true: palette.coral }}
+            />
+          </View>
+
+          <View style={styles.pageBgGrid}>
+            {(['today', 'plans', 'scroll', 'library', 'saved', 'my'] as PageArtworkKey[]).map((key) => {
+              const entry = resolvePageArtwork(key, settings);
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setPickerPageKey(key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${strings.artwork.pageNames[key]} · ${strings.artwork.changeBg}`}
+                  style={[styles.pageBgTile, { borderColor: palette.border, backgroundColor: palette.surfaceElevated }]}
+                >
+                  <Image source={entry.source} style={styles.pageBgThumb} resizeMode="cover" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: palette.textPrimary, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>
+                      {strings.artwork.pageNames[key]}
+                    </Text>
+                    <Text style={{ color: palette.textSecondary, fontSize: 11 }} numberOfLines={1}>
+                      {strings.artwork.presetNames[entry.id]}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={palette.textSecondary} />
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
         {/* Language Selector (한국어 / English) */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -488,6 +553,12 @@ export default function MyScreen() {
           </View>
         </View>
       </Modal>
+
+      <PageBgPickerModal
+        visible={pickerPageKey !== null}
+        pageKey={pickerPageKey ?? 'my'}
+        onClose={() => setPickerPageKey(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -575,5 +646,27 @@ const styles = StyleSheet.create({
     minHeight: 200,
     textAlignVertical: 'top',
     fontSize: 12,
+  },
+  pageBgGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  pageBgTile: {
+    width: '48%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    minHeight: MIN_TOUCH_SIZE,
+  },
+  pageBgThumb: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
   },
 });

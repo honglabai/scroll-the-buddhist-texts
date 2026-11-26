@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -17,6 +18,7 @@ import { NoteModal } from '../../src/components/NoteModal';
 import { StudyModal } from '../../src/components/StudyModal';
 import { VerseCard } from '../../src/components/VerseCard';
 import { ViralShareModal } from '../../src/components/ViralShareModal';
+import { resolvePageArtwork } from '../../src/components/pageArtworks';
 import { MIN_TOUCH_SIZE } from '../../src/components/theme';
 import { TOPICS } from '../../src/domain/readingRules';
 import { useApp, type FeedItem } from '../../src/features/app/AppProvider';
@@ -59,6 +61,7 @@ export default function ScrollReaderScreen() {
     switchEdition,
     setAppLanguage,
     updateThemeMode,
+    updateScrollBackdrop,
     onSegmentFocused,
     toggleBookmark,
     toggleTts,
@@ -175,9 +178,27 @@ export default function ScrollReaderScreen() {
       ? activeTopicDisplay
       : `${shortWorkTitle} ${currentSegmentIndex + 1}`;
 
+  const scrollBackdropSource = resolvePageArtwork('scroll', settings, currentWork?.id).source;
+
   return (
     <View style={[styles.screenOuter, { backgroundColor: palette.background }]}>
       <View style={styles.stageColumn} onLayout={onFeedLayout}>
+        {settings.scrollBackdropEnabled ? (
+          <View pointerEvents="none" style={styles.backdropLayer}>
+            <Image source={scrollBackdropSource} style={styles.backdropImage} resizeMode="cover" />
+            <View
+              style={[
+                styles.backdropGlaze,
+                {
+                  backgroundColor: isDark
+                    ? 'rgba(20, 23, 21, 0.70)'
+                    : 'rgba(245, 242, 235, 0.68)',
+                },
+              ]}
+            />
+          </View>
+        ) : null}
+
         {/* Minimalist Floating Top Pill Navigation (matching Bible app Scroll UI) */}
         <View
           style={[
@@ -207,6 +228,26 @@ export default function ScrollReaderScreen() {
                 name={isDark ? 'sunny-outline' : 'moon-outline'}
                 size={20}
                 color={palette.textPrimary}
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={() => updateScrollBackdrop(!settings.scrollBackdropEnabled)}
+              accessibilityRole="button"
+              accessibilityLabel={strings.artwork.scrollBackdropToggle}
+              style={[
+                styles.circleIconBtn,
+                styles.softShadow,
+                {
+                  backgroundColor: settings.scrollBackdropEnabled ? palette.coral : pillBg,
+                  borderColor: settings.scrollBackdropEnabled ? palette.coral : pillBorder,
+                },
+              ]}
+            >
+              <Ionicons
+                name="image-outline"
+                size={19}
+                color={settings.scrollBackdropEnabled ? '#FFFFFF' : palette.textPrimary}
               />
             </Pressable>
           </View>
@@ -286,7 +327,15 @@ export default function ScrollReaderScreen() {
             viewabilityConfig={viewabilityConfig}
             onScrollToIndexFailed={() => {}}
             ListFooterComponent={
-              <View style={[styles.endCard, { height: feedHeight, backgroundColor: palette.background }]}>
+              <View
+                style={[
+                  styles.endCard,
+                  {
+                    height: feedHeight,
+                    backgroundColor: settings.scrollBackdropEnabled ? 'transparent' : palette.background,
+                  },
+                ]}
+              >
                 <View style={[styles.endInner, { backgroundColor: palette.card, borderColor: palette.border }]}>
                   <Ionicons name="checkmark-circle-outline" size={44} color={palette.coral} />
                   <Text style={[styles.endTitle, { color: palette.textPrimary }]}>
@@ -325,6 +374,7 @@ export default function ScrollReaderScreen() {
                 isBookmarked={bookmarkedIds.has(item.segment.id)}
                 noteCount={noteCountMap.get(item.segment.id) ?? 0}
                 isTtsActive={ttsActiveSegmentId === item.segment.id}
+                scenicBackdropActive={Boolean(settings.scrollBackdropEnabled)}
                 canGoNext={index < feedItems.length - 1}
                 onNext={() => scrollToIndex(index + 1)}
                 onToggleBookmark={() =>
@@ -731,5 +781,24 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     minHeight: MIN_TOUCH_SIZE,
+  },
+  backdropLayer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 0,
+  },
+  backdropImage: {
+    width: '100%',
+    height: '100%',
+  },
+  backdropGlaze: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
 });

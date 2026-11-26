@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import {
+  Image,
+  ImageBackground,
   Modal,
   Platform,
   Pressable,
@@ -9,6 +11,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ImageSourcePropType,
 } from 'react-native';
 import { canShareSegmentText } from '../domain/readingRules';
 import { useApp, type FeedItem } from '../features/app/AppProvider';
@@ -19,27 +22,36 @@ import {
   getLocalizedWorkTitle,
 } from '../i18n/strings';
 import { buildSharePayload } from '../services/shareService';
+import { resolveWorkArtwork } from './pageArtworks';
 import { MIN_TOUCH_SIZE } from './theme';
 
-type CardStylePreset = 'hanji' | 'ink' | 'forest';
+type CardStylePreset = 'scenic' | 'hanji' | 'ink' | 'forest';
 
 const CARD_PRESETS: Record<
   CardStylePreset,
   { label: string; bg: string; text: string; accent: string; sub: string; border: string }
 > = {
+  scenic: {
+    label: '풍경 아트',
+    bg: '#23201B',
+    text: '#FFFFFF',
+    accent: '#E8C584',
+    sub: '#E5DFD2',
+    border: '#C95B4B',
+  },
   hanji: {
     label: '한지',
-    bg: '#F7F4EC',
-    text: '#243B30',
-    accent: '#C5A26A',
-    sub: '#526756',
+    bg: '#F5F2EB',
+    text: '#1F1D1A',
+    accent: '#C95B4B',
+    sub: '#6F6A61',
     border: '#D6CEBA',
   },
   forest: {
     label: '산사',
     bg: '#23382F',
     text: '#F7F4EC',
-    accent: '#C5A26A',
+    accent: '#E2C285',
     sub: '#C2D0C5',
     border: '#3C584C',
   },
@@ -52,6 +64,29 @@ const CARD_PRESETS: Record<
     border: '#2D3A34',
   },
 };
+
+function resolveWebImageUri(src: ImageSourcePropType): string | null {
+  if (typeof src === 'string') return src;
+  if (src && typeof src === 'object' && 'uri' in src && typeof src.uri === 'string') {
+    return src.uri;
+  }
+  const resolver = (
+    Image as unknown as {
+      resolveAssetSource?: (s: ImageSourcePropType) => { uri?: string };
+    }
+  ).resolveAssetSource;
+  return resolver ? resolver(src)?.uri ?? null : null;
+}
+
+function loadHtmlImage(uri: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = uri;
+  });
+}
 
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const paragraphs = text.split('\n');
@@ -73,8 +108,9 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
   return lines;
 }
 
-function downloadQuoteCardPngWeb(params: {
+async function downloadQuoteCardPngWeb(params: {
   preset: CardStylePreset;
+  artSource?: ImageSourcePropType;
   brandHeading: string;
   workTitle: string;
   sourceRef: string;
@@ -91,6 +127,23 @@ function downloadQuoteCardPngWeb(params: {
 
   ctx.fillStyle = style.bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (params.preset === 'scenic' && params.artSource) {
+    const uri = resolveWebImageUri(params.artSource);
+    const loaded = uri ? await loadHtmlImage(uri) : null;
+    if (loaded) {
+      const scale = Math.max(canvas.width / loaded.width, canvas.height / loaded.height);
+      const dw = loaded.width * scale;
+      const dh = loaded.height * scale;
+      ctx.drawImage(loaded, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+      const scrim = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      scrim.addColorStop(0, 'rgba(16, 18, 15, 0.42)');
+      scrim.addColorStop(0.45, 'rgba(16, 18, 15, 0.56)');
+      scrim.addColorStop(1, 'rgba(16, 18, 15, 0.84)');
+      ctx.fillStyle = scrim;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }
 
   ctx.strokeStyle = style.accent;
   ctx.lineWidth = 4;
@@ -132,7 +185,7 @@ export function ViralShareModal({
   onClose: () => void;
 }) {
   const { appLanguage, strings } = useApp();
-  const [preset, setPreset] = useState<CardStylePreset>('forest');
+  const [preset, setPreset] = useState<CardStylePreset>('scenic');
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const shareInfo = useMemo(() => {
@@ -159,6 +212,7 @@ export function ViralShareModal({
   const cardBody = allowText ? item.segmentText.text : strings.viralModal.restrictedBody;
   const attribution = `${edLabel} · ${translator}`;
   const brandHeading = appLanguage === 'en' ? 'Dharma Scroll' : '마음스크롤 · Dharma Scroll';
+  const workArtSource = resolveWorkArtwork(item.work.id).source;
 
   const handleCopy = async () => {
     const textToCopy = shareInfo?.message ?? `${workTitle} · ${sourceRef}`;
@@ -190,10 +244,11 @@ export function ViralShareModal({
     });
   };
 
-  const handleSaveCardImage = () => {
+  const handleSaveCardImage = async () => {
     if (Platform.OS === 'web') {
-      downloadQuoteCardPngWeb({
+      await downloadQuoteCardPngWeb({
         preset,
+        artSource: workArtSource,
         brandHeading,
         workTitle,
         sourceRef,
@@ -203,7 +258,7 @@ export function ViralShareModal({
       setFeedback(strings.viralModal.savedImageMsg);
       return;
     }
-    handleNativeOrWebShare();
+    await handleNativeOrWebShare();
   };
 
   return (
@@ -254,26 +309,50 @@ export function ViralShareModal({
             </View>
 
             {/* Preview Card */}
-            <View
-              style={[
-                styles.previewCard,
-                { backgroundColor: cardTheme.bg, borderColor: cardTheme.accent },
-              ]}
-            >
-              <View style={styles.cardTop}>
-                <Ionicons name="flower-outline" size={18} color={cardTheme.accent} />
-                <Text style={{ color: cardTheme.accent, fontWeight: '700', fontSize: 12 }}>
-                  {brandHeading}
+            {preset === 'scenic' ? (
+              <ImageBackground
+                source={workArtSource}
+                style={[styles.previewCard, styles.scenicPreviewCard, { borderColor: cardTheme.accent }]}
+                imageStyle={{ borderRadius: 16 }}
+                resizeMode="cover"
+              >
+                <View style={styles.scenicPreviewScrim} />
+                <View style={styles.cardTop}>
+                  <Ionicons name="flower-outline" size={18} color={cardTheme.accent} />
+                  <Text style={{ color: cardTheme.accent, fontWeight: '700', fontSize: 12 }}>
+                    {brandHeading}
+                  </Text>
+                </View>
+                <Text style={{ color: cardTheme.sub, fontSize: 12, fontWeight: '600' }}>
+                  {workTitle} · {sourceRef}
                 </Text>
+                <Text style={[styles.previewBody, { color: cardTheme.text }]} numberOfLines={8}>
+                  {cardBody}
+                </Text>
+                <Text style={{ color: cardTheme.sub, fontSize: 11 }}>{attribution}</Text>
+              </ImageBackground>
+            ) : (
+              <View
+                style={[
+                  styles.previewCard,
+                  { backgroundColor: cardTheme.bg, borderColor: cardTheme.accent },
+                ]}
+              >
+                <View style={styles.cardTop}>
+                  <Ionicons name="flower-outline" size={18} color={cardTheme.accent} />
+                  <Text style={{ color: cardTheme.accent, fontWeight: '700', fontSize: 12 }}>
+                    {brandHeading}
+                  </Text>
+                </View>
+                <Text style={{ color: cardTheme.sub, fontSize: 12, fontWeight: '600' }}>
+                  {workTitle} · {sourceRef}
+                </Text>
+                <Text style={[styles.previewBody, { color: cardTheme.text }]} numberOfLines={8}>
+                  {cardBody}
+                </Text>
+                <Text style={{ color: cardTheme.sub, fontSize: 11 }}>{attribution}</Text>
               </View>
-              <Text style={{ color: cardTheme.sub, fontSize: 12, fontWeight: '600' }}>
-                {workTitle} · {sourceRef}
-              </Text>
-              <Text style={[styles.previewBody, { color: cardTheme.text }]} numberOfLines={8}>
-                {cardBody}
-              </Text>
-              <Text style={{ color: cardTheme.sub, fontSize: 11 }}>{attribution}</Text>
-            </View>
+            )}
 
             {feedback && (
               <Text style={{ color: '#D4B47C', fontSize: 13, textAlign: 'center', fontWeight: '600' }}>
@@ -365,6 +444,17 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     padding: 22,
     gap: 12,
+  },
+  scenicPreviewCard: {
+    overflow: 'hidden',
+  },
+  scenicPreviewScrim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(16, 18, 15, 0.58)',
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   previewBody: { fontSize: 19, lineHeight: 29, fontWeight: '600', marginVertical: 6 },
