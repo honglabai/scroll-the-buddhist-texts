@@ -10,14 +10,17 @@ describe('Stage 0 & 3: Rights Manifest & Content Build Gate', () => {
     expect(res.errors).toEqual([]);
     expect(res.blockedEditionIds).toEqual([]);
     expect(OPEN_CONTENT_PACK.works.length).toBe(10);
-    expect(OPEN_CONTENT_PACK.segments.length).toBeGreaterThanOrEqual(835);
+    expect(OPEN_CONTENT_PACK.segments.length).toBeGreaterThanOrEqual(895);
 
     const bdWork = OPEN_CONTENT_PACK.works.find((w) => w.id === 'work-bulgyodaejeon');
     const diamondWork = OPEN_CONTENT_PACK.works.find((w) => w.id === 'work-diamond');
     const dhpWork = OPEN_CONTENT_PACK.works.find((w) => w.id === 'work-dhp');
-    expect(bdWork?.totalSegments).toBe(60);
+    expect(bdWork?.totalSegments).toBe(120);
     expect(diamondWork?.totalSegments).toBe(32);
     expect(dhpWork?.totalSegments).toBe(423);
+
+    const bdSections = OPEN_CONTENT_PACK.sections.filter((s) => s.workId === 'work-bulgyodaejeon');
+    expect(bdSections).toHaveLength(9);
 
     const bdEditions = OPEN_CONTENT_PACK.editions.filter((e) => e.workId === 'work-bulgyodaejeon');
     expect(bdEditions.map((e) => e.id).sort()).toEqual([
@@ -33,14 +36,14 @@ describe('Stage 0 & 3: Rights Manifest & Content Build Gate', () => {
     const bdEnTexts = OPEN_CONTENT_PACK.segmentTexts.filter(
       (t) => t.editionId === 'ed-bulgyodaejeon-en',
     );
-    expect(bdKoTexts).toHaveLength(60);
-    expect(bdEnTexts).toHaveLength(60);
+    expect(bdKoTexts).toHaveLength(120);
+    expect(bdEnTexts).toHaveLength(120);
     for (const item of bdKoTexts) {
       expect(item.text.trim().length).toBeGreaterThan(0);
       expect(item.paraphrase?.trim().length).toBeGreaterThan(0);
     }
     const bdSegments = OPEN_CONTENT_PACK.segments.filter((s) => s.workId === 'work-bulgyodaejeon');
-    expect(bdSegments).toHaveLength(60);
+    expect(bdSegments).toHaveLength(120);
     for (const seg of bdSegments) {
       expect((seg.sourceRefEn ?? '').length).toBeGreaterThan(0);
       expect(seg.sourceRefEn ?? '').not.toMatch(/[\uAC00-\uD7A3]/);

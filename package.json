@@ -43,6 +43,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "validate:content": "tsx scripts/validate-content.ts",
+    "import:bulgyodaejeon": "tsx scripts/import-bulgyodaejeon.ts",
+    "bulgyodaejeon:candidates": "tsx scripts/export-bd-candidates.ts",
     "test": "jest"
   },
   "private": true
